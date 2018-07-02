@@ -32,8 +32,8 @@ const size_t   CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE        = 600;
 const size_t   CRYPTONOTE_DISPLAY_DECIMAL_POINT              = 7;
 // COIN - number of smallest units in one coin
 const uint64_t COIN                                          = UINT64_C(10000000);  // pow(10, 8)
-const uint64_t MINIMUM_FEE                                   = UINT64_C(100000);     // pow(10, 5)
-const uint64_t DEFAULT_DUST_THRESHOLD                        = UINT64_C(100000);     // pow(10, 5)
+const uint64_t MINIMUM_FEE                                   = UINT64_C(100);     // pow(10, 5)
+const uint64_t DEFAULT_DUST_THRESHOLD                        = UINT64_C(100);     // pow(10, 5)
 
 const uint64_t DIFFICULTY_TARGET                             = 90; // pre-LWMA value
 const uint64_t DIFFICULTY_TARGET_V1                          = 120; // LWMA-2
