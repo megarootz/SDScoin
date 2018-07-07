@@ -47,6 +47,17 @@ std::vector<uint64_t> getInputsAmounts(const Transaction& transaction) {
   return inputsAmounts;
 }
 
+uint64_t getInputAmount(const Transaction& transaction) {
+  uint64_t amount = 0;
+  for (auto& input : transaction.inputs) {
+    if (input.type() == typeid(KeyInput)) {
+      amount += boost::get<KeyInput>(input).amount;
+    }
+  }
+
+  return amount;
+}
+
 uint64_t getOutputAmount(const Transaction& transaction) {
   uint64_t amount = 0;
   for (auto& output : transaction.outputs) {

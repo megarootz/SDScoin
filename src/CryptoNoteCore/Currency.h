@@ -89,6 +89,7 @@ public:
   const std::string& blockchinIndicesFileName() const { return m_blockchinIndicesFileName; }
 
   bool isTestnet() const { return m_testnet; }
+  bool isBlockexplorer() const { return m_isBlockexplorer; }
 
   const Block& genesisBlock() const { return m_genesisBlock; }
   const Crypto::Hash& genesisBlockHash() const { return m_genesisBlockHash; }
@@ -112,6 +113,8 @@ public:
   bool isFusionTransaction(const std::vector<uint64_t>& inputsAmounts, const std::vector<uint64_t>& outputsAmounts, size_t size) const;
   bool isAmountApplicableInFusionTransactionInput(uint64_t amount, uint64_t threshold) const;
   bool isAmountApplicableInFusionTransactionInput(uint64_t amount, uint64_t threshold, uint8_t& amountPowerOfTen) const;
+
+
 
   std::string accountAddressAsString(const AccountBase& account) const;
   std::string accountAddressAsString(const AccountPublicAddress& accountPublicAddress) const;
@@ -206,6 +209,7 @@ private:
   static const std::vector<uint64_t> PRETTY_AMOUNTS;
 
   bool m_testnet;
+  bool m_isBlockexplorer;
 
   Block m_genesisBlock;
   Crypto::Hash m_genesisBlockHash;
@@ -290,6 +294,7 @@ public:
   CurrencyBuilder& txPoolFileName(const std::string& val) { m_currency.m_txPoolFileName = val; return *this; }
   CurrencyBuilder& blockchinIndicesFileName(const std::string& val) { m_currency.m_blockchinIndicesFileName = val; return *this; }
   
+  CurrencyBuilder& isBlockexplorer(const bool val) { m_currency.m_isBlockexplorer = val; return *this; }
   CurrencyBuilder& testnet(bool val) { m_currency.m_testnet = val; return *this; }
 
 private:

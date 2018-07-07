@@ -723,6 +723,7 @@ CurrencyBuilder::CurrencyBuilder(Logging::ILogger& log) : m_currency(log) {
   txPoolFileName(parameters::CRYPTONOTE_POOLDATA_FILENAME);
   blockchinIndicesFileName(parameters::CRYPTONOTE_BLOCKCHAIN_INDICES_FILENAME);
 
+  isBlockexplorer(false);
   testnet(false);
 }
 /*
