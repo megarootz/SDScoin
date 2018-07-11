@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -14,6 +16,7 @@
 #include "JsonOutputStreamSerializer.h"
 #include "KVBinaryInputStreamSerializer.h"
 #include "KVBinaryOutputStreamSerializer.h"
+#include <zedwallet/Types.h>
 
 namespace Common {
 
@@ -49,6 +52,15 @@ Common::JsonValue storeContainerToJsonValue(const T& cont) {
   return js;
 }
 
+template <>
+inline Common::JsonValue storeContainerToJsonValue(const std::vector<AddressBookEntry> &cont) {
+  Common::JsonValue js(Common::JsonValue::ARRAY);
+  for (const auto& item : cont) {
+    js.pushBack(storeToJsonValue(item));
+  }
+  return js;
+}
+
 template <typename T>
 Common::JsonValue storeToJsonValue(const std::vector<T>& v) { return storeContainerToJsonValue(v); }
 
@@ -68,6 +80,15 @@ template <typename T>
 void loadFromJsonValue(std::vector<T>& v, const Common::JsonValue& js) {
   for (size_t i = 0; i < js.size(); ++i) {
     v.push_back(Common::getValueAs<T>(js[i]));
+  }
+}
+
+template <>
+inline void loadFromJsonValue(AddressBook &v, const Common::JsonValue &js) {
+  for (size_t i = 0; i < js.size(); ++i) {
+    AddressBookEntry type;
+    loadFromJsonValue(type, js[i]);
+    v.push_back(type);
   }
 }
 

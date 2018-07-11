@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -72,6 +74,16 @@ void GetSpendKeys::Request::serialize(CryptoNote::ISerializer& serializer) {
 void GetSpendKeys::Response::serialize(CryptoNote::ISerializer& serializer) {
   serializer(spendSecretKey, "spendSecretKey");
   serializer(spendPublicKey, "spendPublicKey");
+}
+
+void GetMessage::Request::serialize(CryptoNote::ISerializer& serializer){
+    serializer(privkey, "privkey");
+    serializer(txkey, "txkey");
+    serializer(extra, "extra");
+}
+
+void GetMessage::Response::serialize(CryptoNote::ISerializer& serializer){
+    serializer(message, "message");
 }
 
 void GetBalance::Request::serialize(CryptoNote::ISerializer& serializer) {
@@ -205,7 +217,7 @@ void SendTransaction::Request::serialize(CryptoNote::ISerializer& serializer) {
   if (!serializer(anonymity, "anonymity")) {
     throw RequestSerializationError();
   }
-
+  
   bool hasExtra = serializer(extra, "extra");
   bool hasPaymentId = serializer(paymentId, "paymentId");
 
@@ -214,6 +226,8 @@ void SendTransaction::Request::serialize(CryptoNote::ISerializer& serializer) {
   }
 
   serializer(unlockTime, "unlockTime");
+  serializer(ttl, "ttl");
+  serializer(text, "text");
 }
 
 void SendTransaction::Response::serialize(CryptoNote::ISerializer& serializer) {

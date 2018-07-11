@@ -136,11 +136,11 @@ std::error_code InProcessNode::doGetNewBlocks(std::vector<Crypto::Hash>&& knownB
   try {
     // TODO code duplication see RpcServer::on_get_blocks()
     if (knownBlockIds.empty()) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::NO_KNOWN_BLOCKID);
     }
 
     if (knownBlockIds.back() != core.getBlockIdByHeight(0)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::BLOCKID_IS_NOT_GENESIS);
     }
 
     uint32_t totalBlockCount;
@@ -209,7 +209,7 @@ std::error_code InProcessNode::doGetTransactionOutsGlobalIndices(const Crypto::H
   try {
     bool r = core.get_tx_outputs_gindexs(transactionHash, outsGlobalIndices);
     if(!r) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::TX_OUTPUTS);
     }
   } catch (std::system_error& e) {
     return e.code();
@@ -264,7 +264,7 @@ std::error_code InProcessNode::doGetRandomOutsByAmounts(std::vector<uint64_t>&& 
     req.outs_count = outsCount;
 
     if(!core.get_random_outs_for_amounts(req, res)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::RND_OUTS);
     }
 
     result = std::move(res.outs);
@@ -315,15 +315,15 @@ std::error_code InProcessNode::doRelayTransaction(const CryptoNote::Transaction&
     CryptoNote::tx_verification_context tvc = boost::value_initialized<CryptoNote::tx_verification_context>();
 
     if (!core.handle_incoming_tx(transactionBinaryArray, tvc, false)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::HANDLE_INCOMING_TX_ERROR);
     }
 
     if(tvc.m_verifivation_failed) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::TX_VERIFICATION_FAILED);
     }
 
     if(!tvc.m_should_be_relayed) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::SHOULD_BE_RELAYED);
     }
 
     CryptoNote::NOTIFY_NEW_TRANSACTIONS::request r;
@@ -617,7 +617,7 @@ std::error_code InProcessNode::doGetBlocks(const std::vector<uint32_t>& blockHei
     core.get_blockchain_top(topHeight, topHash);
     for (const uint32_t& height : blockHeights) {
       if (height > topHeight) {
-        return make_error_code(CryptoNote::error::REQUEST_ERROR);
+        return make_error_code(CryptoNote::error::HEIGHT_TOO_BIG);
       }
       Crypto::Hash hash = core.getBlockIdByHeight(height);
       Block block;
@@ -699,7 +699,7 @@ std::error_code InProcessNode::doGetBlocks(const std::vector<Crypto::Hash>& bloc
     for (const Crypto::Hash& hash : blockHashes) {
       Block block;
       if (!core.getBlockByHash(hash, block)) {
-        return make_error_code(CryptoNote::error::REQUEST_ERROR);
+        return make_error_code(CryptoNote::error::NO_BLOCK_BY_HASH);
       }
       BlockDetails blockDetails;
       if (!blockchainExplorerDataBuilder.fillBlockDetails(block, blockDetails)) {
@@ -774,7 +774,7 @@ std::error_code InProcessNode::doGetBlocks(uint64_t timestampBegin, uint64_t tim
   try {
     std::vector<Block> rawBlocks;
     if (!core.getBlocksByTimestamp(timestampBegin, timestampEnd, blocksNumberLimit, rawBlocks, blocksNumberWithinTimestamps)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::NO_BLOCK_BY_TIMESTAMP);
     }
     for (const Block& rawBlock : rawBlocks) {
       BlockDetails block;
@@ -839,7 +839,7 @@ std::error_code InProcessNode::doGetTransactions(const std::vector<Crypto::Hash>
     std::list<Crypto::Hash> missed_txs;
     core.getTransactions(transactionHashes, txs, missed_txs, true);
     if (missed_txs.size() > 0) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::MISSED_TX);
     }
     for (const Transaction& tx : txs) {
       TransactionDetails transactionDetails;
@@ -898,7 +898,7 @@ std::error_code InProcessNode::doGetPoolTransactions(uint64_t timestampBegin, ui
   try {
     std::vector<Transaction> rawTransactions;
     if (!core.getPoolTransactionsByTimestamp(timestampBegin, timestampEnd, transactionsNumberLimit, rawTransactions, transactionsNumberWithinTimestamps)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::POOL_TX_BY_TIMESTAMP);
     }
     for (const Transaction& rawTransaction : rawTransactions) {
       TransactionDetails transactionDetails;
@@ -951,7 +951,7 @@ std::error_code InProcessNode::doGetTransactionsByPaymentId(const Crypto::Hash& 
   try {
     std::vector<Transaction> rawTransactions;
     if (!core.getTransactionsByPaymentId(paymentId, rawTransactions)) {
-      return make_error_code(CryptoNote::error::REQUEST_ERROR);
+      return make_error_code(CryptoNote::error::TX_BY_PAYMENTID);
     }
     for (const Transaction& rawTransaction : rawTransactions) {
       TransactionDetails transactionDetails;

@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
-// Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -77,6 +79,13 @@ bool getPaymentIdFromExtra(const std::string& binaryString, Crypto::Hash& paymen
   return CryptoNote::getPaymentIdFromTxExtra(Common::asBinaryArray(binaryString), paymentId);
 }
 
+bool getMessageFromExtra(Logging::LoggerRef logger, const std::string& privkey, const std::string& txkey, const std::string& extra, std::string& message){
+    
+    return true;
+} 
+
+
+
 std::string getPaymentIdStringFromExtra(const std::string& binaryString) {
   Crypto::Hash paymentId;
 
@@ -141,6 +150,12 @@ void addPaymentIdToExtra(const std::string& paymentId, std::string& extra) {
     throw std::runtime_error("Couldn't add payment id to extra");
   }
 
+  std::copy(extraVector.begin(), extraVector.end(), std::back_inserter(extra));
+}
+
+void addTTLToExtra(const uint64_t& ttl, std::string& extra) {
+  std::vector<uint8_t> extraVector;
+  CryptoNote::appendTTLToExtra(extraVector, ttl);
   std::copy(extraVector.begin(), extraVector.end(), std::back_inserter(extra));
 }
 
@@ -349,7 +364,7 @@ void saveWallet(CryptoNote::IWallet& wallet, std::fstream& walletFile, bool save
   walletFile.flush();
 }
 
-void secureSaveWallet(CryptoNote::IWallet& wallet, const std::string& path, bool saveDetailed = true, bool saveCache = true) {
+void secureSaveWallet(CryptoNote::IWallet& wallet, const std::string& path, bool saveDetailed, bool saveCache) {
   std::fstream tempFile;
   std::string tempFilePath = createTemporaryFile(path, tempFile);
 
@@ -518,8 +533,8 @@ std::error_code WalletService::createAddress(const std::string& spendSecretKeyTe
     System::EventLock lk(readyEvent);
 
     logger(Logging::DEBUGGING) << "Creating address";
-
-	saveWallet();
+    
+    saveWallet();
 
     Crypto::SecretKey secretKey;
     if (!Common::podFromHex(spendSecretKeyText, secretKey)) {
@@ -543,8 +558,8 @@ std::error_code WalletService::createAddress(std::string& address) {
     System::EventLock lk(readyEvent);
 
     logger(Logging::DEBUGGING) << "Creating address";
-
-	saveWallet();
+    
+    saveWallet();
 
     address = wallet.createAddress();
   } catch (std::system_error& x) {
@@ -830,18 +845,28 @@ std::error_code WalletService::sendTransaction(const SendTransaction::Request& r
     } else {
       sendParams.extra = Common::asString(Common::fromHex(request.extra));
     }
+    
+    logger(Logging::DEBUGGING) << "TTL: " << request.ttl;
+    if (request.paymentId.empty() && request.ttl != 0){
+        addTTLToExtra(request.ttl, sendParams.extra);
+    }
+    
+    if(!request.text.empty()){
+        std::copy(request.text.begin(), request.text.end(), std::back_inserter(sendParams.extra));
+    }
 
     sendParams.sourceAddresses = request.sourceAddresses;
     sendParams.destinations = convertWalletRpcOrdersToWalletOrders(request.transfers);
     sendParams.fee = request.fee;
+    sendParams.ttl = request.ttl;
     sendParams.mixIn = request.anonymity;
     sendParams.unlockTimestamp = request.unlockTime;
     sendParams.changeDestination = request.changeAddress;
 
     size_t transactionId = wallet.transfer(sendParams);
     transactionHash = Common::podToHex(wallet.getTransaction(transactionId).hash);
-
-	saveWallet();
+    
+    saveWallet();
 
     logger(Logging::DEBUGGING) << "Transaction " << transactionHash << " has been sent";
   } catch (std::system_error& x) {
@@ -993,6 +1018,22 @@ std::error_code WalletService::getUnconfirmedTransactionHashes(const std::vector
 
   return std::error_code();
 }
+
+std::error_code WalletService::getMessage(const std::string& privkey, const std::string& txkey, const std::string& extra, std::string& message) {
+  try {
+    System::EventLock lk(readyEvent);
+    
+    logger(Logging::DEBUGGING) << "Getting Message from extra " << message;
+    getMessageFromExtra(logger, privkey, txkey, extra, message);
+  
+  } catch (std::system_error& x) {
+    logger(Logging::WARNING) << "Error getting message from extra: " << x.what();
+    return x.code();
+  }
+
+  return std::error_code();
+}
+
 
 std::error_code WalletService::getStatus(uint32_t& blockCount, uint32_t& knownBlockCount, std::string& lastBlockHash, uint32_t& peerCount) {
   try {

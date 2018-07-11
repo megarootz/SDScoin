@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -222,6 +224,23 @@ bool constructTransaction(
     i++;
   }
 
+  return true;
+}
+
+bool get_inputs_money_amount(const Transaction& tx, uint64_t& money) {
+  money = 0;
+
+  for (const auto& in : tx.inputs) {
+    uint64_t amount = 0;
+
+    if (in.type() == typeid(KeyInput)) {
+      amount = boost::get<KeyInput>(in).amount;
+    } else if (in.type() == typeid(MultisignatureInput)) {
+      amount = boost::get<MultisignatureInput>(in).amount;
+    }
+
+    money += amount;
+  }
   return true;
 }
 

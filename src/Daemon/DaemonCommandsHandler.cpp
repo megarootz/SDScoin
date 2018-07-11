@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -248,9 +250,15 @@ bool DaemonCommandsHandler::print_stat(const std::vector<std::string>& args) {
 
   uint64_t totalCoinsInNetwork = m_core.coinsEmittedAtHeight(height);
   uint64_t totalCoinsOnDeposits = m_core.depositAmountAtHeight(height);
+  
+  if(totalCoinsOnDeposits > totalCoinsInNetwork){
+	totalCoinsOnDeposits = totalCoinsInNetwork - (totalCoinsOnDeposits - totalCoinsInNetwork ) - (totalCoinsInNetwork * 0.0375 );
+  }
+  
   uint64_t amountOfActiveCoins = totalCoinsInNetwork - totalCoinsOnDeposits;
-
+	
   const auto& currency = m_core.currency();
+  
   std::cout << "Block height: " << height << std::endl;
   std::cout << "Block difficulty: " << m_core.difficultyAtHeight(height) << std::endl;
   std::cout << "Total coins in network:  " << currency.formatAmount(totalCoinsInNetwork) << std::endl;

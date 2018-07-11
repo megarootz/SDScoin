@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -44,7 +46,8 @@ private:
 
 static_assert(Dispatcher::SIZEOF_PTHREAD_MUTEX_T == sizeof(pthread_mutex_t), "invalid pthread mutex size");
 
-const size_t STACK_SIZE = 64 * 1024;
+//const size_t STACK_SIZE = 64 * 1024;
+const size_t STACK_SIZE = 512 * 1024;
 
 };
 
@@ -311,11 +314,19 @@ void Dispatcher::yield() {
         }
 
         if ((events[i].events & EPOLLOUT) != 0) {
-          contextPair->writeContext->context->interruptProcedure = nullptr;
+            if(contextPair->writeContext != nullptr) {
+            if(contextPair->writeContext->context != nullptr) {
+              contextPair->writeContext->context->interruptProcedure = nullptr;
+            }
+          }
           pushContext(contextPair->writeContext->context);
           contextPair->writeContext->events = events[i].events;
         } else if ((events[i].events & EPOLLIN) != 0) {
-          contextPair->readContext->context->interruptProcedure = nullptr;
+          if(contextPair->readContext != nullptr) {
+           if(contextPair->readContext->context != nullptr) {
+              contextPair->readContext->context->interruptProcedure = nullptr;
+            }
+          }
           pushContext(contextPair->readContext->context);
           contextPair->readContext->events = events[i].events;
         } else {

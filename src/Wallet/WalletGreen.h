@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -80,12 +82,21 @@ public:
   virtual bool isFusionTransaction(size_t transactionId) const override;
   virtual IFusionManager::EstimateResult estimate(uint64_t threshold) const override;
 
+  void updateInternalCache();
+  size_t getMaxTxSize();
+  bool txIsTooLarge(const TransactionParameters& sendingTransaction);
+  void clearCaches();
+  size_t getTxSize(const TransactionParameters &sendingTransaction);
+  void clearCacheAndShutdown();
+  void createViewWallet(const std::string &password,
+                        const std::string address,
+                        const Crypto::SecretKey &viewSecretKey);
+
 protected:
   void throwIfNotInitialized() const;
   void throwIfStopped() const;
   void throwIfTrackingMode() const;
   void doShutdown();
-  void clearCaches();
   void initWithKeys(const Crypto::PublicKey& viewPublicKey, const Crypto::SecretKey& viewSecretKey, const std::string& password);
   std::string doCreateAddress(const Crypto::PublicKey& spendPublicKey, const Crypto::SecretKey& spendSecretKey, uint64_t creationTimestamp);
 

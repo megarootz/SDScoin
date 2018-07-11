@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
-// Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -23,6 +25,9 @@
 #include "CryptoNoteFormatUtils.h"
 #include "CryptoNoteTools.h"
 #include "CryptoNoteConfig.h"
+#include "Transfers/TransfersContainer.h"
+#include "IWallet.h"
+#include "Blockchain.h"
 #include "TransactionExtra.h"
 
 using namespace Logging;
@@ -101,13 +106,14 @@ namespace CryptoNote {
     logger(log, "txpool") {
   }
   //---------------------------------------------------------------------------------
-  bool tx_memory_pool::add_tx(const Transaction &tx, /*const Crypto::Hash& tx_prefix_hash,*/ const Crypto::Hash &id, size_t blobSize, tx_verification_context& tvc, bool keptByBlock) {
+  bool tx_memory_pool::add_tx(const Transaction &tx, /*const Crypto::Hash& tx_prefix_hash,*/ const Crypto::Hash &id, size_t blobSize, tx_verification_context& tvc, bool keptByBlock, uint32_t height) {
+
     if (!check_inputs_types_supported(tx)) {
       tvc.m_verifivation_failed = true;
       return false;
     }
-
-    uint64_t inputs_amount = m_currency.getTransactionAllInputsAmount(tx);
+	
+    uint64_t inputs_amount = m_currency.getTransactionAllInputsAmount(tx, height);
     uint64_t outputs_amount = get_outs_money_amount(tx);
 
     if (outputs_amount > inputs_amount) {
@@ -124,7 +130,7 @@ namespace CryptoNote {
       ttl.ttl = 0;
     }
 
-    const uint64_t fee = inputs_amount - outputs_amount;
+    const uint64_t fee = inputs_amount < outputs_amount ? CryptoNote::parameters::MINIMUM_FEE : inputs_amount - outputs_amount;
     bool isFusionTransaction = fee == 0 && m_currency.isFusionTransaction(tx, blobSize);
     if (!keptByBlock && !isFusionTransaction && ttl.ttl == 0 && fee < m_currency.minimumFee()) {
       logger(INFO) << "transaction fee is not enough: " << m_currency.formatAmount(fee) <<
@@ -151,6 +157,7 @@ namespace CryptoNote {
         tvc.m_verifivation_failed = true;
         return false;
       }
+      
     }
 
     //check key images for transaction if it is not kept by block
@@ -238,11 +245,11 @@ namespace CryptoNote {
   }
 
   //---------------------------------------------------------------------------------
-  bool tx_memory_pool::add_tx(const Transaction &tx, tx_verification_context& tvc, bool keeped_by_block) {
+  bool tx_memory_pool::add_tx(const Transaction &tx, tx_verification_context& tvc, bool keeped_by_block, uint32_t height) {
     Crypto::Hash h = NULL_HASH;
     size_t blobSize = 0;
     getObjectHash(tx, h, blobSize);
-    return add_tx(tx, h, blobSize, tvc, keeped_by_block);
+    return add_tx(tx, h, blobSize, tvc, keeped_by_block, height);
   }
   //---------------------------------------------------------------------------------
   bool tx_memory_pool::take_tx(const Crypto::Hash &id, Transaction &tx, size_t& blobSize, uint64_t& fee) {

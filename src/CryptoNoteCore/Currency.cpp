@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -49,6 +51,30 @@ const std::vector<uint64_t> Currency::PRETTY_AMOUNTS = {
   1000000000000000000, 2000000000000000000, 3000000000000000000, 4000000000000000000, 5000000000000000000, 6000000000000000000, 7000000000000000000, 8000000000000000000, 9000000000000000000,
   10000000000000000000ull
 };
+
+const std::vector<uint64_t> Currency::POWERS_OF_TEN = {
+	1, 
+	10,
+	100,
+	1000,
+	10000,
+	100000,
+	1000000,
+	10000000,
+	100000000,
+	1000000000,
+	10000000000,
+	100000000000,
+	1000000000000,
+	10000000000000,
+	100000000000000,
+	1000000000000000,
+	10000000000000000,
+	100000000000000000,
+	1000000000000000000ull,
+	10000000000000000000ull
+};
+
 
 bool Currency::init() {
   if (!generateGenesisBlock()) {
@@ -160,7 +186,7 @@ bool Currency::getBlockReward(size_t medianSize, size_t currentBlockSize, uint64
   return true;
 }
 
-uint64_t Currency::calculateInterest(uint64_t amount, uint32_t term) const {
+uint64_t Currency::calculateInterest(uint64_t amount, uint32_t term, uint32_t height) const {
   assert(m_depositMinTerm <= term && term <= m_depositMaxTerm);
   assert(static_cast<uint64_t>(term)* m_depositMaxTotalRate > m_depositMinTotalRateFactor);
 
@@ -168,22 +194,33 @@ uint64_t Currency::calculateInterest(uint64_t amount, uint32_t term) const {
   uint64_t bHi;
   uint64_t bLo = mul128(amount, a, &bHi);
 
+  uint64_t cHi;
+  uint64_t cLo;
+  assert(std::numeric_limits<uint32_t>::max() / 100 > m_depositMaxTerm);
+  div128_32(bHi, bLo, static_cast<uint32_t>(100 * m_depositMaxTerm), &cHi, &cLo);
+  assert(cHi == 0);
+
+  //early depositor multiplier
   uint64_t interestHi;
   uint64_t interestLo;
-  assert(std::numeric_limits<uint32_t>::max() / 100 > m_depositMaxTerm);
-  div128_32(bHi, bLo, static_cast<uint32_t>(100 * m_depositMaxTerm), &interestHi, &interestLo);
-  assert(interestHi == 0);
+  if (height <= CryptoNote::parameters::END_MULTIPLIER_BLOCK){
+      interestLo = mul128(cLo, CryptoNote::parameters::MULTIPLIER_FACTOR, &interestHi);
+      assert(interestHi == 0);
+  } else {
+      interestHi = cHi;
+      interestLo = cLo;
+  }
 
   return interestLo;
 }
 
-uint64_t Currency::calculateTotalTransactionInterest(const Transaction& tx) const {
+uint64_t Currency::calculateTotalTransactionInterest(const Transaction& tx, uint32_t height) const {
   uint64_t interest = 0;
   for (const TransactionInput& input : tx.inputs) {
     if (input.type() == typeid(MultisignatureInput)) {
       const MultisignatureInput& multisignatureInput = boost::get<MultisignatureInput>(input);
       if (multisignatureInput.term != 0) {
-        interest += calculateInterest(multisignatureInput.amount, multisignatureInput.term);
+        interest += calculateInterest(multisignatureInput.amount, multisignatureInput.term, height);
       }
     }
   }
@@ -191,7 +228,7 @@ uint64_t Currency::calculateTotalTransactionInterest(const Transaction& tx) cons
   return interest;
 }
 
-uint64_t Currency::getTransactionInputAmount(const TransactionInput& in) const {
+uint64_t Currency::getTransactionInputAmount(const TransactionInput& in, uint32_t height) const {
   if (in.type() == typeid(KeyInput)) {
     return boost::get<KeyInput>(in).amount;
   } else if (in.type() == typeid(MultisignatureInput)) {
@@ -199,7 +236,7 @@ uint64_t Currency::getTransactionInputAmount(const TransactionInput& in) const {
     if (multisignatureInput.term == 0) {
       return multisignatureInput.amount;
     } else {
-      return multisignatureInput.amount + calculateInterest(multisignatureInput.amount, multisignatureInput.term);
+      return multisignatureInput.amount + calculateInterest(multisignatureInput.amount, multisignatureInput.term, height);
     }
   } else if (in.type() == typeid(BaseInput)) {
     return 0;
@@ -209,37 +246,40 @@ uint64_t Currency::getTransactionInputAmount(const TransactionInput& in) const {
   }
 }
 
-uint64_t Currency::getTransactionAllInputsAmount(const Transaction& tx) const {
+uint64_t Currency::getTransactionAllInputsAmount(const Transaction& tx, uint32_t height) const {
   uint64_t amount = 0;
   for (const auto& in : tx.inputs) {
-    amount += getTransactionInputAmount(in);
+    amount += getTransactionInputAmount(in, height);
   }
   return amount;
 }
 
-bool Currency::getTransactionFee(const Transaction& tx, uint64_t & fee) const {
+bool Currency::getTransactionFee(const Transaction& tx, uint64_t& fee, uint32_t height) const {
   uint64_t amount_in = 0;
   uint64_t amount_out = 0;
 
   for (const auto& in : tx.inputs) {
-    amount_in += getTransactionInputAmount(in);
+    amount_in += getTransactionInputAmount(in, height);
   }
 
   for (const auto& o : tx.outputs) {
     amount_out += o.amount;
   }
 
-  if (amount_in < amount_out) {
-    return false;
-  }
+  if (amount_out > amount_in){
+	if (tx.inputs.size() > 0 && tx.outputs.size() > 0 && amount_out > amount_in + parameters::MINIMUM_FEE) //interest shows up in the output of the W/D transactions and W/Ds always have min fee
+	  fee = parameters::MINIMUM_FEE;
+	else
+	  return false;
+  } else
+	fee = amount_in - amount_out;
 
-  fee = amount_in - amount_out;
   return true;
 }
 
-uint64_t Currency::getTransactionFee(const Transaction& tx) const {
+uint64_t Currency::getTransactionFee(const Transaction& tx, uint32_t height) const {
   uint64_t r = 0;
-  if (!getTransactionFee(tx, r)) {
+  if (!getTransactionFee(tx, r, height)) {
     r = 0;
   }
   return r;
@@ -726,7 +766,6 @@ CurrencyBuilder::CurrencyBuilder(Logging::ILogger& log) : m_currency(log) {
   isBlockexplorer(false);
   testnet(false);
 }
-/*
 Transaction CurrencyBuilder::generateGenesisTransaction() {
   CryptoNote::Transaction tx;
   CryptoNote::AccountPublicAddress ac = boost::value_initialized<CryptoNote::AccountPublicAddress>();
@@ -734,7 +773,7 @@ Transaction CurrencyBuilder::generateGenesisTransaction() {
 
   return tx;
 }
-*/
+
 Transaction CurrencyBuilder::generateGenesisTransaction(const std::vector<AccountPublicAddress>& targets) {
     assert(!targets.empty());
  

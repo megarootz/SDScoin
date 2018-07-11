@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -32,6 +34,19 @@ Crypto::Hash getBinaryArrayHash(const BinaryArray& binaryArray) {
   return hash;
 }
 
+uint64_t getInputAmount(const Transaction& transaction) {
+  uint64_t amount = 0;
+  for (auto& input : transaction.inputs) {
+    if (input.type() == typeid(KeyInput)) {
+      amount += boost::get<KeyInput>(input).amount;
+    } else if (input.type() == typeid(MultisignatureInput)) {
+      amount += boost::get<MultisignatureInput>(input).amount;
+    }
+  }
+
+  return amount;
+}
+
 std::vector<uint64_t> getInputsAmounts(const Transaction& transaction) {
   std::vector<uint64_t> inputsAmounts;
   inputsAmounts.reserve(transaction.inputs.size());
@@ -45,17 +60,6 @@ std::vector<uint64_t> getInputsAmounts(const Transaction& transaction) {
   }
 
   return inputsAmounts;
-}
-
-uint64_t getInputAmount(const Transaction& transaction) {
-  uint64_t amount = 0;
-  for (auto& input : transaction.inputs) {
-    if (input.type() == typeid(KeyInput)) {
-      amount += boost::get<KeyInput>(input).amount;
-    }
-  }
-
-  return amount;
 }
 
 uint64_t getOutputAmount(const Transaction& transaction) {

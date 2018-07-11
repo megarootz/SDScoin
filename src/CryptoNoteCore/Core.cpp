@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
-// Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -159,7 +161,7 @@ size_t core::addChain(const std::vector<const IBlock*>& chain) {
       getObjectHash(tx, txHash, blobSize);
       tx_verification_context tvc = boost::value_initialized<tx_verification_context>();
 
-      if (!handleIncomingTransaction(tx, txHash, blobSize, tvc, true)) {
+      if (!handleIncomingTransaction(tx, txHash, blobSize, tvc, true, get_block_height(block->getBlock()))) {
         logger(ERROR, BRIGHT_RED) << "core::addChain() failed to handle transaction " << txHash << " from block " << blocksCounter << "/" << chain.size();
         allTransactionsAdded = false;
         break;
@@ -204,9 +206,13 @@ bool core::handle_incoming_tx(const BinaryArray& tx_blob, tx_verification_contex
     tvc.m_verifivation_failed = true;
     return false;
   }
-  //std::cout << "!"<< tx.inputs.size() << std::endl;
-
-  return handleIncomingTransaction(tx, tx_hash, tx_blob.size(), tvc, keeped_by_block);
+  //std::cout << "!!!"<< tx.inputs.size() << std::endl;
+  
+  Crypto::Hash blockId;
+  uint32_t blockHeight;
+  bool ok = getBlockContainingTx(tx_hash, blockId, blockHeight);
+  if (!ok) blockHeight = this->get_current_blockchain_height(); //this assumption fails for withdrawals
+  return handleIncomingTransaction(tx, tx_hash, tx_blob.size(), tvc, keeped_by_block, blockHeight);
 }
 
 bool core::get_stat_info(core_stat_info& st_inf) {
@@ -219,7 +225,7 @@ bool core::get_stat_info(core_stat_info& st_inf) {
 }
 
 
-bool core::check_tx_semantic(const Transaction& tx, bool keeped_by_block) {
+bool core::check_tx_semantic(const Transaction& tx, bool keeped_by_block, uint32_t &height) {
   if (!tx.inputs.size()) {
     logger(ERROR) << "tx with empty inputs, rejected for tx id= " << getObjectHash(tx);
     return false;
@@ -241,12 +247,19 @@ bool core::check_tx_semantic(const Transaction& tx, bool keeped_by_block) {
     return false;
   }
 
-  uint64_t amount_in = m_currency.getTransactionAllInputsAmount(tx);
+  uint64_t amount_in = m_currency.getTransactionAllInputsAmount(tx, height);
   uint64_t amount_out = get_outs_money_amount(tx);
-
-  if (amount_in < amount_out) {
-    logger(ERROR) << "tx with wrong amounts: ins " << amount_in << ", outs " << amount_out << ", rejected for tx id= " << getObjectHash(tx);
-    return false;
+  
+  if (amount_in < amount_out){
+	  //correct check for unknown deposit creation height
+	  uint32_t testHeight = height > parameters::END_MULTIPLIER_BLOCK ? 0 : (uint32_t)(-1); //try other mode
+	  amount_in = m_currency.getTransactionAllInputsAmount(tx, testHeight);
+	  if (amount_in < amount_out) {
+		logger(ERROR) << "tx with wrong amounts: ins " << amount_in << ", outs " << amount_out << ", rejected for tx id= " << getObjectHash(tx);
+		return false;
+	  } else {
+		  height = testHeight;
+	  }
   }
 
   //check if tx use different key images
@@ -283,7 +296,7 @@ size_t core::get_blockchain_total_transactions() {
 //  return m_blockchain.get_outs(amount, pkeys);
 //}
 
-bool core::add_new_tx(const Transaction& tx, const Crypto::Hash& tx_hash, size_t blob_size, tx_verification_context& tvc, bool keeped_by_block) {
+bool core::add_new_tx(const Transaction& tx, const Crypto::Hash& tx_hash, size_t blob_size, tx_verification_context& tvc, bool keeped_by_block, uint32_t height) {
   //Locking on m_mempool and m_blockchain closes possibility to add tx to memory pool which is already in blockchain 
   std::lock_guard<decltype(m_mempool)> lk(m_mempool);
   LockedBlockchainStorage lbs(m_blockchain);
@@ -298,7 +311,7 @@ bool core::add_new_tx(const Transaction& tx, const Crypto::Hash& tx_hash, size_t
     return true;
   }
 
-  return m_mempool.add_tx(tx, tx_hash, blob_size, tvc, keeped_by_block);
+  return m_mempool.add_tx(tx, tx_hash, blob_size, tvc, keeped_by_block, height);
 }
 
 bool core::get_block_template(Block& b, const AccountPublicAddress& adr, difficulty_type& diffic, uint32_t& height, const BinaryArray& ex_nonce) {
@@ -384,6 +397,30 @@ bool core::get_block_template(Block& b, const AccountPublicAddress& adr, difficu
   if (!r) { 
     logger(ERROR, BRIGHT_RED) << "Failed to construct miner tx, first chance"; 
     return false; 
+  }
+  
+  //10 attemtps to get valid base transaction
+  bool minerTxValid = false;
+  for(size_t i=0;i<10;i++){
+	  uint64_t checkReward = 0;
+	  for (auto& o : b.baseTransaction.outputs) {
+		checkReward += o.amount;
+	  }
+	  uint64_t block_reward;
+	  int64_t emission_change;
+	  m_currency.getBlockReward(median_size, txs_size, already_generated_coins, fee, height, block_reward, emission_change);
+	  if ((block_reward + fee < checkReward) || (checkReward < block_reward)) {
+		logger(ERROR, BRIGHT_RED) << "Coinbase transaction would fit reward amount, attemting to construnct a new one -> " << m_currency.formatAmount(checkReward) <<
+		  " != " << m_currency.formatAmount(block_reward);
+		minerTxValid = false;
+		bool r = m_currency.constructMinerTx(height, median_size, already_generated_coins, txs_size, fee, adr, b.baseTransaction, ex_nonce, 11);
+		if(!r) return false; 
+	  } 
+	  else {
+		minerTxValid = true;
+		break;
+	  }
+	  
   }
 
   size_t cumulative_size = txs_size + getObjectBinarySize(b.baseTransaction);
@@ -513,6 +550,31 @@ void core::getPoolChanges(const std::vector<Crypto::Hash>& knownTxsIds, std::vec
   assert(misses.empty());
 }
 
+bool core::validate_miners_timestamp(const BinaryArray& block_blob, block_verification_context& bvc){
+    Block b;
+    if (!fromBinaryArray(b, block_blob)) {
+        logger(INFO) << "Failed to parse and validate new block";
+        bvc.m_verifivation_failed = true;
+        return false;
+    }
+    
+    // @nesterow: remove implicit timestamp verification
+    
+    //Block bl_;
+    //int32_t diffr = 60;
+    //if(m_blockchain.getBlockByHash(m_blockchain.getTailId(), bl_)){
+    //   diffr = b.timestamp - bl_.timestamp;
+    //}
+    //  
+    //if(diffr < 15){
+    //    logger(INFO) << "Failed to parse and validate new block";
+    //    bvc.m_verifivation_failed = true;
+    //    return false;
+    //}
+    
+    return true;
+}
+
 bool core::handle_incoming_block_blob(const BinaryArray& block_blob, block_verification_context& bvc, bool control_miner, bool relay_block) {
   if (block_blob.size() > m_currency.maxBlockBlobSize()) {
     logger(INFO) << "WRONG BLOCK BLOB, too big size " << block_blob.size() << ", rejected";
@@ -526,6 +588,8 @@ bool core::handle_incoming_block_blob(const BinaryArray& block_blob, block_verif
     bvc.m_verifivation_failed = true;
     return false;
   }
+  
+  
   return handle_incoming_block(b, bvc, control_miner, relay_block);
 }
 
@@ -993,20 +1057,21 @@ uint64_t core::depositInterestAtHeight(size_t height) const {
   return m_blockchain.depositInterestAtHeight(height);
 }
 
-bool core::handleIncomingTransaction(const Transaction& tx, const Crypto::Hash& txHash, size_t blobSize, tx_verification_context& tvc, bool keptByBlock) {
+bool core::handleIncomingTransaction(const Transaction& tx, const Crypto::Hash& txHash, size_t blobSize, tx_verification_context& tvc, bool keptByBlock, uint32_t height) {
   if (!check_tx_syntax(tx)) {
     logger(INFO) << "WRONG TRANSACTION BLOB, Failed to check tx " << txHash << " syntax, rejected";
     tvc.m_verifivation_failed = true;
     return false;
   }
 
-  if (!check_tx_semantic(tx, keptByBlock)) {
+  if (!check_tx_semantic(tx, keptByBlock, height)) {
     logger(INFO) << "WRONG TRANSACTION BLOB, Failed to check tx " << txHash << " semantic, rejected";
     tvc.m_verifivation_failed = true;
     return false;
   }
+  bool r = add_new_tx(tx, txHash, blobSize, tvc, keptByBlock, height);
 
-  bool r = add_new_tx(tx, txHash, blobSize, tvc, keptByBlock);
+
   if (tvc.m_verifivation_failed) {
     if (!tvc.m_tx_fee_too_small) {
       logger(ERROR) << "Transaction verification failed: " << txHash;

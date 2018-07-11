@@ -1,10 +1,16 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
-// Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #pragma once
+
+//pragma once not working so using belo
+#ifndef CRYPTONOTECONFIG
+#define CRYPTONOTECONFIG
 
 #include <cstdint>
 #include <initializer_list>
@@ -16,8 +22,9 @@ namespace parameters {
 const uint64_t CRYPTONOTE_MAX_BLOCK_NUMBER                   = 500000000;
 const size_t   CRYPTONOTE_MAX_BLOCK_BLOB_SIZE                = 500000000;
 const size_t   CRYPTONOTE_MAX_TX_SIZE                        = 1000000000;
-const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x49; // addresses start with "0x49"
+const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x49; // addresses start with "D"
 const size_t   CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW          = 60;
+const uint64_t CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE           = 10;
 
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW             = 60;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW_V1          = 11;  //jagerman's patch
@@ -31,6 +38,7 @@ const size_t   CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V1  = 9999; //size of b
 const size_t   CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE        = 600;
 const size_t   CRYPTONOTE_DISPLAY_DECIMAL_POINT              = 7;
 // COIN - number of smallest units in one coin
+const uint64_t POINT                                         = UINT64_C(100);        // pow(10, 3)
 const uint64_t COIN                                          = UINT64_C(10000000);  // pow(10, 8)
 const uint64_t MINIMUM_FEE                                   = UINT64_C(100);     // pow(10, 5)
 const uint64_t DEFAULT_DUST_THRESHOLD                        = UINT64_C(100);     // pow(10, 5)
@@ -54,6 +62,9 @@ const uint64_t DEPOSIT_MAX_TOTAL_RATE                        = 11;
 static_assert(DEPOSIT_MIN_TERM > 0, "Bad DEPOSIT_MIN_TERM");
 static_assert(DEPOSIT_MIN_TERM <= DEPOSIT_MAX_TERM, "Bad DEPOSIT_MAX_TERM");
 static_assert(DEPOSIT_MIN_TERM * DEPOSIT_MAX_TOTAL_RATE > DEPOSIT_MIN_TOTAL_RATE_FACTOR, "Bad DEPOSIT_MIN_TOTAL_RATE_FACTOR or DEPOSIT_MAX_TOTAL_RATE");
+
+const uint64_t MULTIPLIER_FACTOR                             = 250; //early depositor multiplier
+const uint32_t END_MULTIPLIER_BLOCK                          = 3600; //block at which the multiplier ceases to be applied
 
 const size_t   MAX_BLOCK_SIZE_INITIAL                        = CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE * 10;
 const uint64_t MAX_BLOCK_SIZE_GROWTH_SPEED_NUMERATOR         = 100 * 1024;
@@ -157,6 +168,13 @@ __attribute__((unused))
 // You may add here other checkpoints using the following format:
 // {<block height>, "<block hash>"},
 const std::initializer_list<CheckpointData> CHECKPOINTS = {
+ { 1000, "bd84f4d8a511dc105a15bab8c7d103c9a7ca9398619c6cf06bb081e1b8abccd7" }, 
+ { 11000, "3b24886b89b3f06f2064cf3c6eb5981a25c457d6d02853b3e7bf23b2ff89bd79" },
+ { 22000, "2418580124340e6e69115da555fefb58b188c76568d7616127da4459a3623f0e" },
+ { 33000, "032c0094d5d7c057cdc359b6699653e72162569d6c15402b90a83080ef50c2e5" },
+ { 40000, "edb1e35c3ab677c02215245cbcdc9512ab11787bb1590da8192089b0f178d86e" },
+ { 42000, "320f0c22f51432ecce92755b0b65402256194aa5008baa0acb2eb027a8b8de68" },
+ { 50000, "d48b61d18922dcdedebc2497536fa6ffdaadd86cb82842d3838c092b34aea5e6" }
 };
 
 const std::map<const uint32_t, const uint8_t> Version = {
@@ -167,3 +185,5 @@ const std::map<const uint32_t, const uint8_t> Version = {
 } // CryptoNote
 
 #define ALLOW_DEBUG_COMMANDS
+
+#endif

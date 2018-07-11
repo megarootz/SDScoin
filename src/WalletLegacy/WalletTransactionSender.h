@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -18,11 +20,13 @@
 #include "ITransfersContainer.h"
 
 namespace CryptoNote {
+	
+class INode;
 
 class WalletTransactionSender
 {
 public:
-  WalletTransactionSender(const Currency& currency, WalletUserTransactionsCache& transactionsCache, AccountKeys keys, ITransfersContainer& transfersContainer);
+  WalletTransactionSender(const Currency& currency, WalletUserTransactionsCache& transactionsCache, AccountKeys keys, ITransfersContainer& transfersContainer, INode& node);
 
   void stop();
 
@@ -101,6 +105,8 @@ private:
 
   bool m_isStoping;
   ITransfersContainer& m_transferDetails;
+  
+  INode& m_node; //used solely to get last known block height for calculateInterest
 };
 
 } /* namespace CryptoNote */

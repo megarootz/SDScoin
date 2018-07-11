@@ -247,6 +247,13 @@ void appendTTLToExtra(std::vector<uint8_t>& tx_extra, uint64_t ttl) {
   std::copy(ttlData.begin(), ttlData.end(), std::back_inserter(tx_extra));
 }
 
+bool getTTLFromExtra(const std::vector<uint8_t> &extra, uint64_t ttl) {
+  std::vector<TransactionExtraField> tx_extra_fields;
+  parseTransactionExtra(extra, tx_extra_fields);
+  TransactionExtraTTL tx_extra_ttl_tag;
+  return findTransactionExtraFieldByType(tx_extra_fields, tx_extra_ttl_tag);
+}
+
 void setPaymentIdToTransactionExtraNonce(std::vector<uint8_t>& extra_nonce, const Hash& payment_id) {
   extra_nonce.clear();
   extra_nonce.push_back(TX_EXTRA_NONCE_PAYMENT_ID);

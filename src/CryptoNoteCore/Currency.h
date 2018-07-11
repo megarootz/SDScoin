@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -16,7 +18,13 @@
 #include "CryptoNoteBasic.h"
 #include "Difficulty.h"
 
+
 namespace CryptoNote {
+
+#define MAX_AVERAGE_TIMESPAN          (uint64_t) parameters::DIFFICULTY_TARGET*12   // 24 minutes
+#define MIN_AVERAGE_TIMESPAN          (uint64_t) parameters::DIFFICULTY_TARGET/12  // 10s
+
+    
 
 class AccountBase;
 
@@ -95,13 +103,13 @@ public:
   const Crypto::Hash& genesisBlockHash() const { return m_genesisBlockHash; }
 
   bool getBlockReward(size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint32_t height,
-    uint64_t& reward, int64_t& emissionChange) const;
-  uint64_t calculateInterest(uint64_t amount, uint32_t term) const;
-  uint64_t calculateTotalTransactionInterest(const Transaction& tx) const;
-  uint64_t getTransactionInputAmount(const TransactionInput& in) const;
-  uint64_t getTransactionAllInputsAmount(const Transaction& tx) const;
-  bool getTransactionFee(const Transaction& tx, uint64_t & fee) const;
-  uint64_t getTransactionFee(const Transaction& tx) const;
+  uint64_t& reward, int64_t& emissionChange) const;
+  uint64_t calculateInterest(uint64_t amount, uint32_t term, uint32_t height) const;
+  uint64_t calculateTotalTransactionInterest(const Transaction& tx, uint32_t height) const;
+  uint64_t getTransactionInputAmount(const TransactionInput& in, uint32_t height) const;
+  uint64_t getTransactionAllInputsAmount(const Transaction& tx, uint32_t height) const;
+  bool getTransactionFee(const Transaction& tx, uint64_t & fee, uint32_t height) const;
+  uint64_t getTransactionFee(const Transaction& tx, uint32_t height) const;
   size_t maxBlockCumulativeSize(uint64_t height) const;
 
   bool constructMinerTx(uint32_t height, size_t medianSize, uint64_t alreadyGeneratedCoins, size_t currentBlockSize,
@@ -205,8 +213,10 @@ private:
   std::string m_blockIndexesFileName;
   std::string m_txPoolFileName;
   std::string m_blockchinIndicesFileName;
+  std::string m_genesisCoinbaseTxHex;
 
   static const std::vector<uint64_t> PRETTY_AMOUNTS;
+  static const std::vector<uint64_t> POWERS_OF_TEN;
 
   bool m_testnet;
   bool m_isBlockexplorer;
@@ -293,6 +303,7 @@ public:
   CurrencyBuilder& blockIndexesFileName(const std::string& val) { m_currency.m_blockIndexesFileName = val; return *this; }
   CurrencyBuilder& txPoolFileName(const std::string& val) { m_currency.m_txPoolFileName = val; return *this; }
   CurrencyBuilder& blockchinIndicesFileName(const std::string& val) { m_currency.m_blockchinIndicesFileName = val; return *this; }
+  CurrencyBuilder& genesisCoinbaseTxHex(const std::string& val) { m_currency.m_genesisCoinbaseTxHex = val; return *this; }
   
   CurrencyBuilder& isBlockexplorer(const bool val) { m_currency.m_isBlockexplorer = val; return *this; }
   CurrencyBuilder& testnet(bool val) { m_currency.m_testnet = val; return *this; }

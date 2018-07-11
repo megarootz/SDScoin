@@ -1,5 +1,7 @@
 // Copyright (c) 2011-2016 The Cryptonote developers
 // Copyright (c) 2014-2017 XDN-project developers
+// Copyright (c) 2016-2017 BXC developers
+// Copyright (c) 2017 UltraNote developers
 // Copyright (c) 2018-2019 xDrop developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -329,7 +331,16 @@ bool RpcServer::on_get_info(const COMMAND_RPC_GET_INFO::request& req, COMMAND_RP
   res.white_peerlist_size = m_p2p.getPeerlistManager().get_white_peers_count();
   res.grey_peerlist_size = m_p2p.getPeerlistManager().get_gray_peers_count();
   res.last_known_block_index = std::max(static_cast<uint32_t>(1), m_protocolQuery.getObservedHeight()) - 1;
-  res.full_deposit_amount = m_core.fullDepositAmount();
+  
+  
+  uint64_t height = m_core.get_current_blockchain_height() - 1;
+  uint64_t totalCoinsInNetwork = m_core.coinsEmittedAtHeight(height);
+  uint64_t totalCoinsOnDeposits = m_core.depositAmountAtHeight(height);
+  if(totalCoinsOnDeposits > totalCoinsInNetwork){
+	totalCoinsOnDeposits = totalCoinsInNetwork - (totalCoinsOnDeposits - totalCoinsInNetwork ) - (totalCoinsInNetwork * 0.0375 );
+  }
+
+  res.full_deposit_amount = totalCoinsOnDeposits;
   res.full_deposit_interest = m_core.fullDepositInterest();
   res.status = CORE_RPC_STATUS_OK;
   return true;
@@ -453,14 +464,9 @@ bool RpcServer::on_stop_daemon(const COMMAND_RPC_STOP_DAEMON::request& req, COMM
 //------------------------------------------------------------------------------------------------------------------------------
 
 bool RpcServer::f_on_blocks_list_json(const F_COMMAND_RPC_GET_BLOCKS_LIST::request& req, F_COMMAND_RPC_GET_BLOCKS_LIST::response& res) {
-  // check if blockchain explorer RPC is enabled
-  //if (m_core.currency().isBlockexplorer() == false) {
-//    return false;
-//  }
-
-  if (m_core.get_current_blockchain_height() + 1 <= req.height) {
+  if (m_core.get_current_blockchain_height() <= req.height) {
     throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_TOO_BIG_HEIGHT,
-      std::string("To big height: ") + std::to_string(req.height) + ", current blockchain height = " + std::to_string(m_core.get_current_blockchain_height() + 1) };
+      std::string("To big height: ") + std::to_string(req.height) + ", current blockchain height = " + std::to_string(m_core.get_current_blockchain_height()) };
   }
 
   uint32_t print_blocks_count = 30;
@@ -471,20 +477,22 @@ bool RpcServer::f_on_blocks_list_json(const F_COMMAND_RPC_GET_BLOCKS_LIST::reque
 
   for (uint32_t i = req.height; i >= last_height; i--) {
     Hash block_hash = m_core.getBlockIdByHeight(static_cast<uint32_t>(i));
-    if (!m_core.have_block(block_hash)) {
-      throw JsonRpc::JsonRpcError{
-        CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
+    Block blk;
+    if (!m_core.getBlockByHash(block_hash, blk)) {
+      throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
         "Internal error: can't get block by height. Height = " + std::to_string(i) + '.' };
     }
-    
-    Block blk;
-    m_core.getBlockByHash(block_hash, blk);
-    //BlockDetails blkDetails = m_core.getBlockDetails(block_hash);
+   
+    size_t tx_cumulative_block_size;
+    m_core.getBlockSize(block_hash, tx_cumulative_block_size);
+    size_t blokBlobSize = getObjectBinarySize(blk);
+    size_t minerTxBlobSize = getObjectBinarySize(blk.baseTransaction);
 
     f_block_short_response block_short;
-    //block_short.cumul_size = blkDetails.blockSize;
+    block_short.cumul_size = blokBlobSize + tx_cumulative_block_size - minerTxBlobSize;
     block_short.timestamp = blk.timestamp;
     block_short.height = i;
+    m_core.getBlockDifficulty(static_cast<uint32_t>(block_short.height), block_short.difficulty);
     block_short.hash = Common::podToHex(block_hash);
     block_short.tx_count = blk.transactionHashes.size() + 1;
 
@@ -499,31 +507,20 @@ bool RpcServer::f_on_blocks_list_json(const F_COMMAND_RPC_GET_BLOCKS_LIST::reque
 }
 
 bool RpcServer::f_on_block_json(const F_COMMAND_RPC_GET_BLOCK_DETAILS::request& req, F_COMMAND_RPC_GET_BLOCK_DETAILS::response& res) {
-  // check if blockchain explorer RPC is enabled
-  //if (m_core.currency().isBlockexplorer() == false) {
-//    return false;
-//  }
   Hash hash;
 
-  try {
-    uint32_t height = boost::lexical_cast<uint32_t>(req.hash);
-    hash = m_core.getBlockIdByHeight(height);
-  } catch (boost::bad_lexical_cast &) {
-    if (!parse_hash256(req.hash, hash)) {
-      throw JsonRpc::JsonRpcError{
-        CORE_RPC_ERROR_CODE_WRONG_PARAM,
-        "Failed to parse hex representation of block hash. Hex = " + req.hash + '.' };
-    }
+  if (!parse_hash256(req.hash, hash)) {
+    throw JsonRpc::JsonRpcError{
+      CORE_RPC_ERROR_CODE_WRONG_PARAM,
+      "Failed to parse hex representation of block hash. Hex = " + req.hash + '.' };
   }
 
-  if (!m_core.have_block(hash)) {
+  Block blk;
+  if (!m_core.getBlockByHash(hash, blk)) {
     throw JsonRpc::JsonRpcError{
       CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
       "Internal error: can't get block by hash. Hash = " + req.hash + '.' };
   }
-  Block blk;
-  m_core.getBlockByHash(hash, blk);
-  //BlockDetails blkDetails = m_core.getBlockDetails(hash);
 
   if (blk.baseTransaction.inputs.front().type() != typeid(BaseInput)) {
     throw JsonRpc::JsonRpcError{
@@ -541,60 +538,98 @@ bool RpcServer::f_on_block_json(const F_COMMAND_RPC_GET_BLOCK_DETAILS::request& 
   res.block.prev_hash = block_header.prev_hash;
   res.block.nonce = block_header.nonce;
   res.block.hash = Common::podToHex(hash);
-  res.block.depth = m_core.get_current_blockchain_height() - res.block.height;
-  res.block.difficulty = m_core.difficultyAtHeight(res.block.height);
-  //res.block.alreadyGeneratedCoins = m_core.coinsEmittedAtHeight(res.block.height - 1);
-  res.block.alreadyGeneratedCoins = std::to_string(m_core.coinsEmittedAtHeight(res.block.height - 1));
-  res.block.alreadyGeneratedTransactions = m_core.get_blockchain_total_transactions() - res.block.height;
-  //res.block.alreadyGeneratedTransactions = blkDetails.alreadyGeneratedTransactions;
-  res.block.reward = block_header.reward;
-  //res.block.sizeMedian = blkDetails.sizeMedian;
-  //res.block.blockSize = blkDetails.blockSize;
- 
-  //res.block.orphan_status = blkDetails.isAlternative;
+  res.block.depth = m_core.get_current_blockchain_height() - res.block.height - 1;
+  m_core.getBlockDifficulty(static_cast<uint32_t>(res.block.height), res.block.difficulty);
 
+  res.block.reward = block_header.reward;
+
+  std::vector<size_t> blocksSizes;
+  if (!m_core.getBackwardBlocksSizes(res.block.height, blocksSizes, parameters::CRYPTONOTE_REWARD_BLOCKS_WINDOW)) {
+    return false;
+  }
+  res.block.sizeMedian = Common::medianValue(blocksSizes);
+
+  size_t blockSize = 0;
+  if (!m_core.getBlockSize(hash, blockSize)) {
+    return false;
+  }
+  res.block.transactionsCumulativeSize = blockSize;
+
+  size_t blokBlobSize = getObjectBinarySize(blk);
+  size_t minerTxBlobSize = getObjectBinarySize(blk.baseTransaction);
+  res.block.blockSize = blokBlobSize + res.block.transactionsCumulativeSize - minerTxBlobSize;
+
+  uint64_t alreadyGeneratedCoins;
+  if (!m_core.getAlreadyGeneratedCoins(hash, alreadyGeneratedCoins)) {
+    return false;
+  }
+  res.block.alreadyGeneratedCoins = std::to_string(alreadyGeneratedCoins);
+
+  if (!m_core.getGeneratedTransactionsNumber(res.block.height, res.block.alreadyGeneratedTransactions)) {
+    return false;
+  }
+
+  uint64_t prevBlockGeneratedCoins = 0;
+  if (res.block.height > 0) {
+    if (!m_core.getAlreadyGeneratedCoins(blk.previousBlockHash, prevBlockGeneratedCoins)) {
+      return false;
+    }
+  }
   uint64_t maxReward = 0;
   uint64_t currentReward = 0;
   int64_t emissionChange = 0;
   size_t blockGrantedFullRewardZone = m_core.currency().blockGrantedFullRewardZoneByBlockVersion(block_header.major_version);
   res.block.effectiveSizeMedian = std::max(res.block.sizeMedian, blockGrantedFullRewardZone);
 
-  //res.block.baseReward = blkDetails.baseReward;
-  //res.block.penalty = blkDetails.penalty;
+  if (!m_core.getBlockReward(res.block.sizeMedian, 0, prevBlockGeneratedCoins, 0, res.block.height, maxReward, emissionChange)) {
+    return false;
+  }
+  if (!m_core.getBlockReward(res.block.sizeMedian, res.block.transactionsCumulativeSize, prevBlockGeneratedCoins, 0, res.block.height, currentReward, emissionChange)) {
+    return false;
+  }
+  
+
+  res.block.baseReward = maxReward;
+  if (maxReward == 0 && currentReward == 0) {
+    res.block.penalty = static_cast<double>(0);
+  } else {
+    if (maxReward < currentReward) {
+      return false;
+    }
+    res.block.penalty = static_cast<double>(maxReward - currentReward) / static_cast<double>(maxReward);
+  }
 
   // Base transaction adding
   f_transaction_short_response transaction_short;
   transaction_short.hash = Common::podToHex(getObjectHash(blk.baseTransaction));
   transaction_short.fee = 0;
-  transaction_short.amount_out = getOutputAmount(blk.baseTransaction);
+  transaction_short.amount_out = get_outs_money_amount(blk.baseTransaction);
   transaction_short.size = getObjectBinarySize(blk.baseTransaction);
   res.block.transactions.push_back(transaction_short);
 
   std::list<Crypto::Hash> missed_txs;
   std::list<Transaction> txs;
   m_core.getTransactions(blk.transactionHashes, txs, missed_txs);
-  //blockBlobSize + blockDetails.transactionsCumulativeSize - coinbaseTransactionSize;
+
   res.block.totalFeeAmount = 0;
-  int totalSize = 0;
 
   for (const Transaction& tx : txs) {
     f_transaction_short_response transaction_short;
-    uint64_t amount_in = getInputAmount(tx);
-    uint64_t amount_out = getOutputAmount(tx);
+    uint64_t amount_in = 0;
+    get_inputs_money_amount(tx, amount_in);
+    uint64_t amount_out = get_outs_money_amount(tx);
 
     transaction_short.hash = Common::podToHex(getObjectHash(tx));
-    transaction_short.fee = amount_in - amount_out;
+    transaction_short.fee = 
+			amount_in < amount_out + parameters::MINIMUM_FEE //account for interest in output, it always has minimum fee
+			? parameters::MINIMUM_FEE 
+			: amount_in - amount_out;
     transaction_short.amount_out = amount_out;
     transaction_short.size = getObjectBinarySize(tx);
     res.block.transactions.push_back(transaction_short);
 
     res.block.totalFeeAmount += transaction_short.fee;
-    totalSize += transaction_short.size;
   }
-
-  res.block.transactionsCumulativeSize = totalSize;
-  res.block.blockSize = getObjectBinarySize(blk) + totalSize;
-   
 
   res.status = CORE_RPC_STATUS_OK;
   return true;
@@ -602,11 +637,6 @@ bool RpcServer::f_on_block_json(const F_COMMAND_RPC_GET_BLOCK_DETAILS::request& 
 
 
 bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAILS::request& req, F_COMMAND_RPC_GET_TRANSACTION_DETAILS::response& res) {
-  // check if blockchain explorer RPC is enabled
-  //if (m_core.currency().isBlockexplorer() == false) {
-//    return false;
-//  }
-
   Hash hash;
 
   if (!parse_hash256(req.hash, hash)) {
@@ -629,38 +659,41 @@ bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAIL
       CORE_RPC_ERROR_CODE_WRONG_PARAM,
       "transaction wasn't found. Hash = " + req.hash + '.' };
   }
-  /*
-  TransactionDetails transactionDetails = m_core.getTransactionDetails(hash);
 
   Crypto::Hash blockHash;
-  if (transactionDetails.inBlockchain) {
-    uint32_t blockHeight = transactionDetails.blockIndex;
-    if (!blockHeight) {
-      throw JsonRpc::JsonRpcError{
-        CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
-        "Internal error: can't get transaction by hash. Hash = " + Common::podToHex(hash) + '.' };
+  uint32_t blockHeight;
+  if (m_core.getBlockContainingTx(hash, blockHash, blockHeight)) {
+    Block blk;
+    if (m_core.getBlockByHash(blockHash, blk)) {
+      size_t tx_cumulative_block_size;
+      m_core.getBlockSize(blockHash, tx_cumulative_block_size);
+      size_t blokBlobSize = getObjectBinarySize(blk);
+      size_t minerTxBlobSize = getObjectBinarySize(blk.baseTransaction);
+      f_block_short_response block_short;
+
+      block_short.cumul_size = blokBlobSize + tx_cumulative_block_size - minerTxBlobSize;
+      block_short.timestamp = blk.timestamp;
+      block_short.height = blockHeight;
+      block_short.hash = Common::podToHex(blockHash);
+      block_short.cumul_size = blokBlobSize + tx_cumulative_block_size - minerTxBlobSize;
+      block_short.tx_count = blk.transactionHashes.size() + 1;
+      res.block = block_short;
     }
-    blockHash = m_core.getBlockHashByIndex(blockHeight);
-    BlockTemplate blk = m_core.getBlockByHash(blockHash);
-    BlockDetails blkDetails = m_core.getBlockDetails(blockHash);
+  }
 
-    f_block_short_response block_short;
-
-    block_short.cumul_size = blkDetails.blockSize;
-    block_short.timestamp = blk.timestamp;
-    block_short.height = blockHeight;
-    block_short.hash = Common::podToHex(blockHash);
-    block_short.tx_count = blk.transactionHashes.size() + 1;
-    res.block = block_short;
-  }*/
-
-  uint64_t amount_in = getInputAmount(res.tx);
-  uint64_t amount_out = getOutputAmount(res.tx);
+  uint64_t amount_in = 0;
+  get_inputs_money_amount(res.tx, amount_in);
+  uint64_t amount_out = get_outs_money_amount(res.tx);
 
   res.txDetails.hash = Common::podToHex(getObjectHash(res.tx));
-  res.txDetails.fee = amount_in - amount_out;
   if (amount_in == 0)
     res.txDetails.fee = 0;
+  else {
+	res.txDetails.fee = 
+		amount_in < amount_out + parameters::MINIMUM_FEE //account for interest in output, it always has minimum fee
+		? parameters::MINIMUM_FEE 
+		: amount_in - amount_out;
+  }
   res.txDetails.amount_out = amount_out;
   res.txDetails.size = getObjectBinarySize(res.tx);
 
@@ -684,11 +717,6 @@ bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAIL
 
 
 bool RpcServer::f_on_transactions_pool_json(const F_COMMAND_RPC_GET_POOL::request& req, F_COMMAND_RPC_GET_POOL::response& res) {
-// check if blockchain explorer RPC is enabled
-//  if (m_core.currency().isBlockexplorer() == false) {
-//    return false;
-//  }
-
   auto pool = m_core.getPoolTransactions();
   for (const Transaction tx : pool) {
     f_transaction_short_response transaction_short;
@@ -696,7 +724,10 @@ bool RpcServer::f_on_transactions_pool_json(const F_COMMAND_RPC_GET_POOL::reques
     uint64_t amount_out = getOutputAmount(tx);
 
     transaction_short.hash = Common::podToHex(getObjectHash(tx));
-    transaction_short.fee = amount_in - amount_out;
+    transaction_short.fee = 
+			amount_in < amount_out + parameters::MINIMUM_FEE //account for interest in output, it always has minimum fee
+			? parameters::MINIMUM_FEE 
+			: amount_in - amount_out;
     transaction_short.amount_out = amount_out;
     transaction_short.size = getObjectBinarySize(tx);
     res.transactions.push_back(transaction_short);
