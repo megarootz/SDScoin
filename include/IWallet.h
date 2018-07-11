@@ -95,6 +95,7 @@ struct TransactionParameters {
   std::vector<WalletOrder> destinations;
   uint64_t fee = 0;
   uint64_t mixIn = 0;
+  uint64_t ttl = 0;
   std::string extra;
   uint64_t unlockTimestamp = 0;
   DonationSettings donation;
