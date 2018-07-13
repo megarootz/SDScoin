@@ -408,6 +408,45 @@ struct BLOCK_HEADER_RESPONSE {
 };
 
 
+struct COMMAND_RPC_GET_BLOCK
+{
+  struct request
+  {
+    std::string hash;
+    uint64_t height;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(hash)
+      KV_MEMBER(height)
+    }
+
+  };
+
+  struct response
+  {
+    std::string status;
+    block_header_response block_header;
+    std::string miner_tx_hash;
+    std::vector<std::string> tx_hashes;
+    std::string blob;
+    std::string json;
+    bool untrusted;
+    
+    void serialize(ISerializer &s) {
+      KV_MEMBER(block_header)
+      KV_MEMBER(miner_tx_hash)
+      KV_MEMBER(tx_hashes)
+      KV_MEMBER(status)
+      KV_MEMBER(blob)
+      KV_MEMBER(json)
+      KV_MEMBER(untrusted)
+    }
+
+  };
+
+};
+
+
 struct f_transaction_short_response {
   std::string hash;
   uint64_t fee;

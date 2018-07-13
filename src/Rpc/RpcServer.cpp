@@ -76,6 +76,7 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   
   // binary handlers
   { "/getblocks.bin", { binMethod<COMMAND_RPC_GET_BLOCKS_FAST>(&RpcServer::on_get_blocks), false } },
+  { "/getblock.bin", { binMethod<COMMAND_RPC_GET_BLOCK>(&RpcServer::on_get_block), false } },
   { "/queryblocks.bin", { binMethod<COMMAND_RPC_QUERY_BLOCKS>(&RpcServer::on_query_blocks), false } },
   { "/queryblockslite.bin", { binMethod<COMMAND_RPC_QUERY_BLOCKS_LITE>(&RpcServer::on_query_blocks_lite), false } },
   { "/get_o_indexes.bin", { binMethod<COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES>(&RpcServer::on_get_indexes), false } },
@@ -501,6 +502,65 @@ bool RpcServer::f_on_blocks_list_json(const F_COMMAND_RPC_GET_BLOCKS_LIST::reque
     if (i == 0)
       break;
   }
+
+  res.status = CORE_RPC_STATUS_OK;
+  return true;
+}
+
+bool RpcServer::on_get_block(const COMMAND_RPC_GET_BLOCK::request& req, COMMAND_RPC_GET_BLOCK::response& res) {
+  Hash hash;
+  if (!req.hash.empty())
+  {
+    if (!parse_hash256(req.hash, hash)) {
+      throw JsonRpc::JsonRpcError{
+        CORE_RPC_ERROR_CODE_WRONG_PARAM,
+        "Failed to parse hex representation of block hash. Hex = " + req.hash + '.' };
+    }
+  }else{
+    if(m_core.get_current_blockchain_height() <= req.height)
+    {
+      throw JsonRpc::JsonRpcError{
+        CORE_RPC_ERROR_CODE_TOO_BIG_HEIGHT,
+        std::string("Height too big: ") + std::to_string(req.height) + ", current blockchain height = " +  std::to_string(m_core.get_current_blockchain_height()) };
+    }
+    hash = m_core.getBlockIdByHeight(req.height);    
+  }
+
+  Block blk;
+  bool orphan = false;
+  if (!m_core.getBlockByHash(hash, blk)) {
+    throw JsonRpc::JsonRpcError{
+      CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
+      "Internal error: can't get block by hash. Hash = " + req.hash + '.' };
+  }
+
+  block_header_response block_header;
+  uint64_t block_height = boost::get<BaseInput>(blk.baseTransaction.inputs.front()).blockIndex;
+  fill_block_header_response(blk, orphan, block_height, hash, res.block_header);
+  /*
+  if (!res.block_header.size())
+  {
+    throw JsonRpc::JsonRpcError{
+      CORE_RPC_ERROR_CODE_INTERNAL_ERROR,
+      "Internal error: can't produce valid response." };
+  }
+  */
+
+  std::list<Crypto::Hash> missed_txs;
+  std::list<Transaction> txs;
+  m_core.getTransactions(blk.transactionHashes, txs, missed_txs);
+
+  res.miner_tx_hash = Common::podToHex(getObjectHash(blk.baseTransaction));
+  for (const Transaction& tx : txs) {
+    res.tx_hashes.push_back(Common::podToHex(getObjectHash(tx)));
+  }
+
+
+  BinaryArray block_blob = toBinaryArray(blk);
+  res.blob = toHex(block_blob);
+
+  //res.blob = string_tools::buff_to_hex_nodelimer(t_serializable_object_to_blob(blk));
+  res.json = storeToBinaryKeyValue(blk);
 
   res.status = CORE_RPC_STATUS_OK;
   return true;
