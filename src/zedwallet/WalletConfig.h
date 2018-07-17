@@ -42,7 +42,7 @@ namespace WalletConfig
                                            ::CRYPTONOTE_DISPLAY_DECIMAL_POINT;
 
     /* The length of a standard address for your coin */
-    const long unsigned int addressLength = 96;
+    const long unsigned int addressLength = 95;
 
     /* The mixin value to use with transactions */
     const uint64_t defaultMixin = 0;
