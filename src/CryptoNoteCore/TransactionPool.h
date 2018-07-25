@@ -33,6 +33,8 @@
 #include "CryptoNoteCore/ITxPoolObserver.h"
 #include "CryptoNoteCore/VerificationContext.h"
 #include "CryptoNoteCore/BlockchainIndices.h"
+#include "Rpc/CoreRpcServerCommandsDefinitions.h"
+
 
 #include <Logging/LoggerRef.h>
 

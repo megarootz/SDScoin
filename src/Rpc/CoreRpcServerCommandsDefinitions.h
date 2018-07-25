@@ -11,6 +11,9 @@
 #include "CryptoNoteProtocol/CryptoNoteProtocolDefinitions.h"
 #include "CryptoNoteCore/CryptoNoteBasic.h"
 #include "CryptoNoteCore/Difficulty.h"
+
+#include "CryptoNoteCore/CryptoNoteSerialization.h"
+
 #include "crypto/hash.h"
 
 #include "Serialization/SerializationOverloads.h"
@@ -70,6 +73,246 @@ struct COMMAND_RPC_GET_BLOCKS_FAST {
     }
   };
 };
+
+
+
+
+
+struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_request {
+  std::vector<uint64_t> amounts;
+  uint16_t outs_count;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(amounts)
+    KV_MEMBER(outs_count)
+  }
+};
+
+struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_out_entry {
+  uint32_t global_amount_index;
+  Crypto::PublicKey out_key;
+  void serialize(ISerializer &s) {
+    KV_MEMBER(global_amount_index)
+    KV_MEMBER(out_key)
+  }
+};
+
+struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_outs_for_amount {
+  uint64_t amount;
+  std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_out_entry> outs;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(amount)
+    KV_MEMBER(outs)
+  }
+};
+
+struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_response {
+  std::vector<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_outs_for_amount> outs;
+  std::string status;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(outs)
+    KV_MEMBER(status)
+  }
+};
+
+struct COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON {
+  typedef COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_request request;
+  typedef COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_response response;
+
+  typedef COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_out_entry out_entry;
+  typedef COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS_JSON_outs_for_amount outs_for_amount;
+};
+
+
+
+
+
+
+/*
+
+struct key {
+  unsigned char & operator[](int i) {
+    return bytes[i];
+  }
+  unsigned char operator[](int i) const {
+    return bytes[i];
+  }
+  bool operator==(const key &k) const { return !memcmp(bytes, k.bytes, sizeof(bytes)); }
+  unsigned char bytes[32];
+};
+
+typedef std::vector<key> keyV; //vector of keys
+typedef std::vector<keyV> keyM; //matrix of keys (indexed by column first)
+
+struct ctkey {
+  key dest;
+  key mask; //C here if public
+};
+typedef std::vector<ctkey> ctkeyV;
+typedef std::vector<ctkeyV> ctkeyM;
+
+struct ecdhTuple {
+  key mask;
+  key amount;
+  key senderPk;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(amount)
+    KV_MEMBER(mask)
+  }  
+};
+
+//containers for representing amounts
+typedef uint64_t xmr_amount;
+typedef unsigned int bits[ATOMS];
+typedef key key64[64];
+
+
+*/
+
+/*
+struct rctSigBase {
+  uint8_t type;
+  key message;
+  ctkeyM mixRing; //the set of all pubkeys / copy
+  //pairs that you mix with
+  keyV pseudoOuts; //C - for simple rct
+  std::vector<ecdhTuple> ecdhInfo;
+  ctkeyV outPk;
+  xmr_amount txnFee; // contains b
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(type)
+    KV_MEMBER(message)
+    KV_MEMBER(mixRing)
+    KV_MEMBER(pseudoOuts)
+    KV_MEMBER(ecdhInfo)
+    KV_MEMBER(outPk)
+    KV_MEMBER(txnFee)
+  }
+  serializeRctsigBase  
+};
+  
+  void serializeRctsigBase(rct::rctSig& rct_signatures, size_t inputs, size_t outputs, ISerializer& serializer) {
+    serializer(rct_signatures.type, "type");
+    serializer(rct_signatures.txnFee, "txnFee");
+
+    if (serializer.type() == ISerializer::INPUT) {
+      rct_signatures.pseudoOuts.resize(inputs);
+    }
+
+    for (size_t i = 0; i < inputs; ++i) {
+      serializer(rct_signatures.pseudoOuts[i], "");
+    }
+
+    if (serializer.type() == ISerializer::INPUT) {
+      rct_signatures.ecdhInfo.resize(outputs);
+    }
+
+    for (size_t i = 0; i < outputs; ++i) {
+      serializer(rct_signatures.ecdhInfo[i], "");
+    }
+
+    if (serializer.type() == ISerializer::INPUT) {
+      rct_signatures.outPk.resize(outputs);
+    } 
+
+    for (size_t i = 0; i < outputs; ++i) {
+      serializer(rct_signatures.outPk[i].mask, "");
+    }
+  }
+*/
+struct tx_sig
+{
+  std::vector<Crypto::Signature> signature;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(signature)
+  }
+};
+
+struct tx_info
+{
+  std::string id_hash;
+  std::string tx_json; // TODO - expose this data directly
+  std::vector<uint8_t> extra;
+
+  std::vector<tx_sig> signatures;
+//  rct::rctSig rct_signatures;
+
+//  std::string signatures;
+//  std::string paymentId;
+  uint64_t ttl;
+//  std::vector<std::string> tx_messages;
+//  std::vector<uint8_t> tx_messages;  
+//  std::string tx_details_json;
+
+
+  uint64_t blob_size;
+  uint64_t fee;
+//  std::string max_used_block_id_hash;
+//  uint64_t max_used_block_height;
+  bool kept_by_block;
+//  uint64_t last_failed_height;
+//  std::string last_failed_id_hash;
+  uint64_t receive_time;
+//  bool relayed;
+//  uint64_t last_relayed_time;
+//  bool do_not_relay;
+//  bool double_spend_seen;
+//  std::string tx_blob;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(id_hash)
+    KV_MEMBER(tx_json)
+    KV_MEMBER(extra)
+
+//    serializeAsBinary(signatures, "signatures", s);
+    KV_MEMBER(signatures)
+//    KV_MEMBER(rct_signatures)
+//    serializeRctsigBase(rct_signatures, s);
+
+
+//    KV_MEMBER(paymentId)
+//    KV_MEMBER(ttl)
+//    KV_MEMBER(tx_messages)
+
+    KV_MEMBER(blob_size)
+    KV_MEMBER(fee)
+//    KV_MEMBER(max_used_block_id_hash)
+//    KV_MEMBER(max_used_block_height)
+    KV_MEMBER(kept_by_block)
+//    KV_MEMBER(last_failed_height)
+//    KV_MEMBER(last_failed_id_hash)
+    KV_MEMBER(receive_time)
+//    KV_MEMBER(relayed)
+//    KV_MEMBER(last_relayed_time)
+//    KV_MEMBER(do_not_relay)
+//    KV_MEMBER(double_spend_seen)
+//    KV_MEMBER(tx_blob)
+
+  }
+
+//  serializeRctsigBase(tx.rctSignatures, tx.inputs.size(), tx.outputs.size(), serializer);
+//  serializeRctSigPrunable(tx.rctSignatures.p, tx.rctSignatures.type, tx.inputs.size(), tx.outputs.size(),
+//                            tx.inputs[0].type() == typeid(KeyInput) ? boost::get<KeyInput>(tx.inputs[0]).outputIndexes.size() - 1 : 0, serializer);
+
+};
+
+struct spent_key_image_info
+{
+  std::string id_hash;
+  std::vector<std::string> txs_hashes;
+
+  void serialize(ISerializer &s) {
+    KV_MEMBER(id_hash)
+    KV_MEMBER(txs_hashes)
+  }
+};
+
+
 //-----------------------------------------------
 struct COMMAND_RPC_GET_TRANSACTIONS {
   struct request {
@@ -81,11 +324,13 @@ struct COMMAND_RPC_GET_TRANSACTIONS {
   };
 
   struct response {
+    std::vector<tx_info> transactions;
     std::vector<std::string> txs_as_hex; //transactions blobs as hex
     std::vector<std::string> missed_tx;  //not found transactions
     std::string status;
 
     void serialize(ISerializer &s) {
+      KV_MEMBER(transactions)
       KV_MEMBER(txs_as_hex)
       KV_MEMBER(missed_tx)
       KV_MEMBER(status)    
@@ -427,6 +672,7 @@ struct COMMAND_RPC_GET_BLOCK
     std::string status;
     block_header_response block_header;
     std::string miner_tx_hash;
+    std::vector<uint8_t> miner_tx_extra;
     std::vector<std::string> tx_hashes;
     std::string blob;
     std::string json;
@@ -435,6 +681,7 @@ struct COMMAND_RPC_GET_BLOCK
     void serialize(ISerializer &s) {
       KV_MEMBER(block_header)
       KV_MEMBER(miner_tx_hash)
+      KV_MEMBER(miner_tx_extra)
       KV_MEMBER(tx_hashes)
       KV_MEMBER(status)
       KV_MEMBER(blob)
@@ -701,6 +948,52 @@ struct F_COMMAND_RPC_GET_TRANSACTION_DETAILS {
       KV_MEMBER(txDetails)
       KV_MEMBER(block)
       KV_MEMBER(status)
+    }
+  };
+};
+
+/*
+struct COMMAND_RPC_GET_TRANSACTION_DETAILS_BY_HASHES {
+  struct request {
+    std::vector<Crypto::Hash> transactionHashes;
+
+    void serialize(ISerializer &s) {
+      serializeAsBinary(transactionHashes, "transactionHashes", s);
+    }
+  };
+
+  struct response {
+    std::vector<TransactionDetails> transactions;
+    std::string status;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(status)
+      KV_MEMBER(transactions)
+    }
+  };
+};
+*/
+
+struct COMMAND_RPC_GET_TRANSACTION_POOL
+{
+  struct request
+  {
+    void serialize(ISerializer &s) {
+    }
+  };
+
+  struct response
+  {
+    std::string status;
+    std::vector<tx_info> transactions;
+    std::vector<spent_key_image_info> spent_key_images;
+    bool untrusted;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(status)
+      KV_MEMBER(transactions)
+      KV_MEMBER(spent_key_images)
+      KV_MEMBER(untrusted)
     }
   };
 };

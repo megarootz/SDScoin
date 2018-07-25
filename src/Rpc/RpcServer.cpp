@@ -75,7 +75,6 @@ RpcServer::HandlerFunction jsonMethod(bool (RpcServer::*handler)(typename Comman
 std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction>> RpcServer::s_handlers = {
   
   // binary handlers
-  { "/getblocks.bin", { binMethod<COMMAND_RPC_GET_BLOCKS_FAST>(&RpcServer::on_get_blocks), false } },
   { "/getblock.bin", { binMethod<COMMAND_RPC_GET_BLOCK>(&RpcServer::on_get_block), false } },
   { "/queryblocks.bin", { binMethod<COMMAND_RPC_QUERY_BLOCKS>(&RpcServer::on_query_blocks), false } },
   { "/queryblockslite.bin", { binMethod<COMMAND_RPC_QUERY_BLOCKS_LITE>(&RpcServer::on_query_blocks_lite), false } },
@@ -88,6 +87,7 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   { "/getinfo", { jsonMethod<COMMAND_RPC_GET_INFO>(&RpcServer::on_get_info), true } },
   { "/getheight", { jsonMethod<COMMAND_RPC_GET_HEIGHT>(&RpcServer::on_get_height), true } },
   { "/gettransactions", { jsonMethod<COMMAND_RPC_GET_TRANSACTIONS>(&RpcServer::on_get_transactions), false } },
+  { "/gettransactionpool", { jsonMethod<COMMAND_RPC_GET_TRANSACTION_POOL>(&RpcServer::on_get_transaction_pool), false } },
   { "/sendrawtransaction", { jsonMethod<COMMAND_RPC_SEND_RAW_TX>(&RpcServer::on_send_raw_tx), false } },
   { "/start_mining", { jsonMethod<COMMAND_RPC_START_MINING>(&RpcServer::on_start_mining), false } },
   { "/stop_mining", { jsonMethod<COMMAND_RPC_STOP_MINING>(&RpcServer::on_stop_mining), false } },
@@ -97,8 +97,10 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   { "/json_rpc", { std::bind(&RpcServer::processJsonRpcRequest, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), true } }
 };
 
-RpcServer::RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, const ICryptoNoteProtocolQuery& protocolQuery) :
-  HttpServer(dispatcher, log), logger(log, "RpcServer"), m_core(c), m_p2p(p2p), m_protocolQuery(protocolQuery) {
+RpcServer::RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, ICryptoNoteProtocolQuery& protocolQuery) :
+  HttpServer(dispatcher, log), logger(log, "RpcServer"), m_core(c), m_p2p(p2p), m_protocolQuery(protocolQuery)
+  ,blockchainExplorerDataBuilder(c, protocolQuery) 
+  {
 }
 
 void RpcServer::processRequest(const HttpRequest& request, HttpResponse& response) {
@@ -145,7 +147,8 @@ bool RpcServer::processJsonRpcRequest(const HttpRequest& request, HttpResponse& 
       { "submitblock", { makeMemberMethod(&RpcServer::on_submitblock), false } },
       { "getlastblockheader", { makeMemberMethod(&RpcServer::on_get_last_block_header), false } },
       { "getblockheaderbyhash", { makeMemberMethod(&RpcServer::on_get_block_header_by_hash), false } },
-      { "getblockheaderbyheight", { makeMemberMethod(&RpcServer::on_get_block_header_by_height), false } }
+      { "getblockheaderbyheight", { makeMemberMethod(&RpcServer::on_get_block_header_by_height), false } },
+      { "getblock", { makeMemberMethod(&RpcServer::on_get_block), false } }
     };
 
     auto it = jsonRpcHandlers.find(jsonRequest.getMethod());
@@ -353,6 +356,74 @@ bool RpcServer::on_get_height(const COMMAND_RPC_GET_HEIGHT::request& req, COMMAN
   return true;
 }
 
+bool RpcServer::on_get_transaction_pool(const COMMAND_RPC_GET_TRANSACTION_POOL::request& req, COMMAND_RPC_GET_TRANSACTION_POOL::response& res){
+  auto pool = m_core.getPoolTransactions();
+  for (const Transaction tx : pool) {
+
+    TransactionDetails transactionDetails;
+    blockchainExplorerDataBuilder.fillTransactionDetails(tx,transactionDetails);
+
+
+    tx_info txi;
+    uint64_t amount_in = getInputAmount(tx);
+    uint64_t amount_out = getOutputAmount(tx);
+    txi.fee = 
+      amount_in < amount_out + parameters::MINIMUM_FEE //account for interest in output, it always has minimum fee
+      ? parameters::MINIMUM_FEE 
+      : amount_in - amount_out;
+    txi.id_hash = Common::podToHex(getObjectHash(tx));
+    txi.blob_size = getObjectBinarySize(tx);
+    
+    //txi.extra = toBinaryArray(Common::podToHex(tx.extra));
+    txi.extra = tx.extra;
+    //txi.extra = toBinaryArray(Common::fromHex(tx.extra));
+    //todo:
+    //take the binary string for extra and turn it into binary array
+    //then copy tx's json to a temp string
+    //replace the extra from binary string to binary array in the json
+    //store new json in txi
+
+    txi.tx_json = storeToJson(tx);
+    txi.kept_by_block = false;
+//    txi.max_used_block_height = 0;
+//    txi.max_used_block_id_hash = "";
+//    txi.last_failed_height = 0;
+//    txi.last_failed_id_hash = "";    
+//    txi.receive_time = 0;
+    txi.receive_time = transactionDetails.timestamp;;    
+//    txi.relayed = 0;
+//    txi.last_relayed_time = 0;
+//    txi.do_not_relay = 0;
+//    txi.double_spend_seen = 0;
+    /*
+  for (auto& input: transaction.inputs) {
+    if (input.type() == typeid(KeyInput)) {
+      inputsAmounts.push_back(boost::get<KeyInput>(input).amount);
+    } else if (input.type() == typeid(MultisignatureInput)) {
+      inputsAmounts.push_back(boost::get<MultisignatureInput>(input).amount);
+    }
+  }
+  */
+
+    txi.signatures.reserve(tx.signatures.size());
+    for (const std::vector<Crypto::Signature>& signatures : tx.signatures) {
+      tx_sig signaturesDetails;
+      //signaturesDetails.reserve(signatures.size());
+      for (const Crypto::Signature& signature : signatures) {
+        //signaturesDetails.push_back(signature);
+        signaturesDetails.signature.push_back(signature);
+      }
+      txi.signatures.push_back(std::move(signaturesDetails));
+    }
+
+
+    res.transactions.push_back(txi);
+  }
+
+  res.status = CORE_RPC_STATUS_OK;
+  return true;
+}
+
 bool RpcServer::on_get_transactions(const COMMAND_RPC_GET_TRANSACTIONS::request& req, COMMAND_RPC_GET_TRANSACTIONS::response& res) {
   std::vector<Hash> vh;
   for (const auto& tx_hex_str : req.txs_hashes) {
@@ -370,10 +441,70 @@ bool RpcServer::on_get_transactions(const COMMAND_RPC_GET_TRANSACTIONS::request&
   }
   std::list<Hash> missed_txs;
   std::list<Transaction> txs;
-  m_core.getTransactions(vh, txs, missed_txs);
+  m_core.getTransactions(vh, txs, missed_txs, true);
 
   for (auto& tx : txs) {
-    res.txs_as_hex.push_back(toHex(toBinaryArray(tx)));
+
+    TransactionDetails transactionDetails;
+    blockchainExplorerDataBuilder.fillTransactionDetails(tx,transactionDetails);
+
+/*
+    Hash paymentId;
+    CryptoNote::getPaymentIdFromTxExtra(tx.extra, paymentId);
+
+    uint64_t ttl;
+    CryptoNote::getTTLFromExtra(tx.extra, ttl);
+
+    std::vector<std::string> tx_messages;
+    CryptoNote::getMessagesFromExtra(tx.extra, tx_messages);
+*/
+
+
+
+    tx_info txi;
+    uint64_t amount_in = getInputAmount(tx);
+    uint64_t amount_out = getOutputAmount(tx);
+    txi.fee = 
+      amount_in < amount_out + parameters::MINIMUM_FEE //account for interest in output, it always has minimum fee
+      ? parameters::MINIMUM_FEE 
+      : amount_in - amount_out;
+    txi.id_hash = Common::podToHex(getObjectHash(tx));
+    txi.blob_size = getObjectBinarySize(tx);
+    txi.extra = tx.extra;
+    txi.tx_json = storeToJson(tx);
+    txi.kept_by_block = transactionDetails.inBlockchain;
+    txi.receive_time = transactionDetails.timestamp;;
+
+    //txi.paymentId = Common::podToHex(paymentId);
+    //txi.ttl = ttl;
+    //txi.tx_messages = tx_messages;
+    
+    //for (auto& msg : tx_messages) {
+      //txi.tx_messages.push_back(Common::podToHex(msg));
+      //txi.tx_messages.push_back(toHex(msg));
+      //txi.tx_messages.push_back(msg);
+    //}
+
+    txi.signatures.reserve(tx.signatures.size());
+    for (const std::vector<Crypto::Signature>& signatures : tx.signatures) {
+      tx_sig signaturesDetails;
+      for (const Crypto::Signature& signature : signatures) {
+        signaturesDetails.signature.push_back(signature);
+      }
+      txi.signatures.push_back(std::move(signaturesDetails));
+    }
+
+    //for (auto& sig : tx.signatures) {
+      //txi.signatures.push_back(std::move(sig));
+      //txi.signatures.push_back(sig);
+    //}
+    //txi.signatures = std::move(tx.signatures);
+
+    //txi.tx_details_json = storeToJson(transactionDetails);
+    //CryptoNote::getPaymentIdFromTxExtra(res.tx.extra, paymentId    
+    
+    res.transactions.push_back(txi);
+    //res.txs_as_hex.push_back(toHex(toBinaryArray(tx)));
   }
 
   for (const auto& miss_tx : missed_txs) {
@@ -555,12 +686,10 @@ bool RpcServer::on_get_block(const COMMAND_RPC_GET_BLOCK::request& req, COMMAND_
     res.tx_hashes.push_back(Common::podToHex(getObjectHash(tx)));
   }
 
-
   BinaryArray block_blob = toBinaryArray(blk);
   res.blob = toHex(block_blob);
-
-  //res.blob = string_tools::buff_to_hex_nodelimer(t_serializable_object_to_blob(blk));
-  res.json = storeToBinaryKeyValue(blk);
+  res.json = storeToJson(blk);
+  res.miner_tx_extra = blk.baseTransaction.extra;
 
   res.status = CORE_RPC_STATUS_OK;
   return true;
@@ -730,8 +859,6 @@ bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAIL
       size_t blokBlobSize = getObjectBinarySize(blk);
       size_t minerTxBlobSize = getObjectBinarySize(blk.baseTransaction);
       f_block_short_response block_short;
-
-      block_short.cumul_size = blokBlobSize + tx_cumulative_block_size - minerTxBlobSize;
       block_short.timestamp = blk.timestamp;
       block_short.height = blockHeight;
       block_short.hash = Common::podToHex(blockHash);

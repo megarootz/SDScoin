@@ -91,7 +91,8 @@ bool getMergeMiningTagFromExtra(const std::vector<uint8_t>& tx_extra, Transactio
 bool append_message_to_extra(std::vector<uint8_t>& tx_extra, const tx_extra_message& message);
 std::vector<std::string> get_messages_from_extra(const std::vector<uint8_t>& extra, const Crypto::PublicKey &txkey, const Crypto::SecretKey *recepient_secret_key);
 void appendTTLToExtra(std::vector<uint8_t>& tx_extra, uint64_t ttl);
-bool getTTLFromExtra(const std::vector<uint8_t>& tx_extra, uint64_t ttl);
+bool getTTLFromExtra(const std::vector<uint8_t>& tx_extra, uint64_t& ttl);
+bool getMessagesFromExtra(const std::vector<uint8_t>& extra, std::vector<std::string>& tx_messages);
 bool createTxExtraWithPaymentId(const std::string& paymentIdString, std::vector<uint8_t>& extra);
 //returns false if payment id is not found or parse error
 bool getPaymentIdFromTxExtra(const std::vector<uint8_t>& extra, Crypto::Hash& paymentId);

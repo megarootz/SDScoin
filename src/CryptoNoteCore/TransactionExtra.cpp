@@ -247,11 +247,37 @@ void appendTTLToExtra(std::vector<uint8_t>& tx_extra, uint64_t ttl) {
   std::copy(ttlData.begin(), ttlData.end(), std::back_inserter(tx_extra));
 }
 
-bool getTTLFromExtra(const std::vector<uint8_t> &extra, uint64_t ttl) {
+bool getTTLFromExtra(const std::vector<uint8_t>& extra, uint64_t& ttl) {
   std::vector<TransactionExtraField> tx_extra_fields;
-  parseTransactionExtra(extra, tx_extra_fields);
-  TransactionExtraTTL tx_extra_ttl_tag;
-  return findTransactionExtraFieldByType(tx_extra_fields, tx_extra_ttl_tag);
+  if (!parseTransactionExtra(extra, tx_extra_fields)) {
+    return false;
+  }
+
+  for (const TransactionExtraField& field : tx_extra_fields) {
+    if (typeid(TransactionExtraTTL) == field.type()) {
+      ttl = std::move(boost::get<TransactionExtraTTL>(field).ttl);
+      //ttl = reinterpret_cast<const uint64_t>(std::move(boost::get<TransactionExtraTTL>(field).ttl));
+    }
+  }
+
+  return true;
+}
+
+//getting ready for a more extensive messages api
+bool getMessagesFromExtra(const std::vector<uint8_t>& extra, std::vector<std::string>& tx_messages) {
+  std::vector<TransactionExtraField> tx_extra_fields;
+  if (!parseTransactionExtra(extra, tx_extra_fields)) {
+    return false;
+  }
+
+  for (const TransactionExtraField& field : tx_extra_fields) {
+    if (typeid(tx_extra_message) == field.type()) {
+      tx_messages.push_back(std::move(boost::get<tx_extra_message>(field).data));
+      //tx_messages.push_back(std::move(toBinaryArray(boost::get<tx_extra_message>(field).data)));
+    }
+  }
+
+  return true;
 }
 
 void setPaymentIdToTransactionExtraNonce(std::vector<uint8_t>& extra_nonce, const Hash& payment_id) {
