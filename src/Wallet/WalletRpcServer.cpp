@@ -291,6 +291,7 @@ bool wallet_rpc_server::on_get_transfers(const wallet_rpc::COMMAND_RPC_GET_TRANS
     transfer.blockIndex = txInfo.blockHeight;
     transfer.unlockTime = txInfo.unlockTime;
     transfer.paymentId = "";
+    transfer.confirmations = m_node.getKnownBlockCount() - txInfo.blockHeight;
 
     std::vector<uint8_t> extraVec;
     extraVec.reserve(txInfo.extra.size());
