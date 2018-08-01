@@ -751,7 +751,13 @@ std::error_code WalletService::getTransactions(const std::vector<std::string>& a
 
     Crypto::Hash blockHash = parseHash(blockHashString, logger);
 
-    transactions = getRpcTransactions(blockHash, blockCount, transactionFilter);
+    std::vector<TransactionsInBlockRpcInfo> txs = getRpcTransactions(blockHash, blockCount, transactionFilter);
+  for (TransactionsInBlockRpcInfo& b : txs){
+    for (TransactionRpcInfo& t : b.transactions){
+      t.confirmations = wallet.getBlockCount() - t.blockIndex;
+    }
+  }
+  transactions = txs;
   } catch (std::system_error& x) {
     logger(Logging::WARNING) << "Error while getting transactions: " << x.what();
     return x.code();
@@ -775,7 +781,13 @@ std::error_code WalletService::getTransactions(const std::vector<std::string>& a
 
     TransactionsInBlockInfoFilter transactionFilter(addresses, paymentId);
 
-    transactions = getRpcTransactions(firstBlockIndex, blockCount, transactionFilter);
+    std::vector<TransactionsInBlockRpcInfo> txs = getRpcTransactions(firstBlockIndex, blockCount, transactionFilter);
+  for (TransactionsInBlockRpcInfo& b : txs){
+    for (TransactionRpcInfo& t : b.transactions){
+      t.confirmations = wallet.getBlockCount() - t.blockIndex;
+    }
+  }
+  transactions = txs;
   } catch (std::system_error& x) {
     logger(Logging::WARNING) << "Error while getting transactions: " << x.what();
     return x.code();
