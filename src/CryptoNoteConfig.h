@@ -22,7 +22,7 @@ namespace parameters {
 const uint64_t CRYPTONOTE_MAX_BLOCK_NUMBER                   = 500000000;
 const size_t   CRYPTONOTE_MAX_BLOCK_BLOB_SIZE                = 500000000;
 const size_t   CRYPTONOTE_MAX_TX_SIZE                        = 1000000000;
-const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x49; // addresses start with "D"
+const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x2eb7f37; // addresses start with "Xmyro"
 const size_t   CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW          = 60;
 const uint64_t CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE           = 10;
 
@@ -107,8 +107,8 @@ const uint64_t START_BLOCK_REWARD                            = (UINT64_C(1000) *
 const uint64_t MIN_BLOCK_REWARD                              = (UINT64_C(150) * parameters::COIN);
 const uint64_t REWARD_HALVING_INTERVAL                       = (UINT64_C(11000));
 
-const char     CRYPTONOTE_NAME[]                             = "xDrop";
-const char     GENESIS_COINBASE_TX_HEX[]                     = "013c01ff000180d3b7a1eaafe30102ecadf82ae4188563c1bdf264af04f19a199cc22d7eeef5a26526c89bc19f22f121013a399d5689282997e4c7a7d9d4dbec5509a2f747ab6b7ad19563a135a1ff0d8f";
+const char     CRYPTONOTE_NAME[]                             = "Xmynero";
+const char     GENESIS_COINBASE_TX_HEX[]                     = "";
 const uint32_t GENESIS_NONCE                                 = 420;
 
 const uint8_t  CURRENT_TRANSACTION_VERSION                   =  1;
@@ -145,15 +145,9 @@ const size_t   P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT          = 5000;          //
 const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "";
 
 const std::initializer_list<const char*> SEED_NODES = {
-    "13.59.84.153:13739",
-    "18.219.60.205:13739",
-    "18.188.109.63:13739",
-    "13.58.107.176:13739",
-    "18.218.219.154:13739",
-    "18.220.55.192:13739",
-    "18.217.189.186:13739",
-    "18.220.148.190:13739",
-    "18.222.51.67:13739"
+    "206.189.232.35:13739",
+    "159.65.132.179:13739",
+    
 };
 
 struct CheckpointData {
