@@ -29,7 +29,7 @@ const uint64_t CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE           = 10;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW             = 60;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW_V1          = 11;  //jagerman's patch
 
-const uint64_t MONEY_SUPPLY                                  = UINT64_C(9999999990000000);
+const uint64_t MONEY_SUPPLY                                  = UINT64_C(858986905600000000);
 
 
 const size_t   CRYPTONOTE_REWARD_BLOCKS_WINDOW               = 99;
@@ -142,7 +142,7 @@ const uint32_t P2P_DEFAULT_CONNECTION_TIMEOUT                = 5000;          //
 const uint32_t P2P_DEFAULT_PING_CONNECTION_TIMEOUT           = 2000;          // 2 seconds
 const uint64_t P2P_DEFAULT_INVOKE_TIMEOUT                    = 60 * 2 * 1000; // 2 minutes
 const size_t   P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT          = 5000;          // 5 seconds
-const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "";
+const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "8f80f9a5a434a9f1510d13336228debfee9c918ce505efe225d8c94d045fa115";
 
 const std::initializer_list<const char*> SEED_NODES = {
     "206.189.232.35:13739",
@@ -162,18 +162,12 @@ __attribute__((unused))
 // You may add here other checkpoints using the following format:
 // {<block height>, "<block hash>"},
 const std::initializer_list<CheckpointData> CHECKPOINTS = {
- { 1000, "bd84f4d8a511dc105a15bab8c7d103c9a7ca9398619c6cf06bb081e1b8abccd7" }, 
- { 11000, "3b24886b89b3f06f2064cf3c6eb5981a25c457d6d02853b3e7bf23b2ff89bd79" },
- { 22000, "2418580124340e6e69115da555fefb58b188c76568d7616127da4459a3623f0e" },
- { 33000, "032c0094d5d7c057cdc359b6699653e72162569d6c15402b90a83080ef50c2e5" },
- { 40000, "edb1e35c3ab677c02215245cbcdc9512ab11787bb1590da8192089b0f178d86e" },
- { 42000, "320f0c22f51432ecce92755b0b65402256194aa5008baa0acb2eb027a8b8de68" },
- { 50000, "d48b61d18922dcdedebc2497536fa6ffdaadd86cb82842d3838c092b34aea5e6" }
+
 };
 
 const std::map<const uint32_t, const uint8_t> Version = {
 	// {BlockIndex , Version}
-	{ 42000, 1 }
+	
 };
 
 } // CryptoNote
