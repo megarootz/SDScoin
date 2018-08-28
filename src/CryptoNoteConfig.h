@@ -29,7 +29,7 @@ const uint64_t CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE           = 10;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW             = 60;
 const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW_V1          = 11;  //jagerman's patch
 
-const uint64_t MONEY_SUPPLY                                  = UINT64_C(858986905600000000);
+const uint64_t MONEY_SUPPLY                                  = UINT64_C(1000000000000000000);
 
 
 const size_t   CRYPTONOTE_REWARD_BLOCKS_WINDOW               = 99;
@@ -107,8 +107,8 @@ const uint64_t START_BLOCK_REWARD                            = (UINT64_C(1000) *
 const uint64_t MIN_BLOCK_REWARD                              = (UINT64_C(150) * parameters::COIN);
 const uint64_t REWARD_HALVING_INTERVAL                       = (UINT64_C(11000));
 
-const char     CRYPTONOTE_NAME[]                             = "Xmynero";
-const char     GENESIS_COINBASE_TX_HEX[]                     = "013c01ff000180d3b7a1eaafe301029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd08807121017603f34d2314b53e8e207038e00ef4fe2664214400aab9f26caff530a0cb585b";
+const char     CRYPTONOTE_NAME[]                             = "Vmynero";
+const char     GENESIS_COINBASE_TX_HEX[]                     = "";
 const uint32_t GENESIS_NONCE                                 = 420;
 
 const uint8_t  CURRENT_TRANSACTION_VERSION                   =  1;
@@ -142,10 +142,9 @@ const uint32_t P2P_DEFAULT_CONNECTION_TIMEOUT                = 5000;          //
 const uint32_t P2P_DEFAULT_PING_CONNECTION_TIMEOUT           = 2000;          // 2 seconds
 const uint64_t P2P_DEFAULT_INVOKE_TIMEOUT                    = 60 * 2 * 1000; // 2 minutes
 const size_t   P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT          = 5000;          // 5 seconds
-const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "8f80f9a5a434a9f1510d13336228debfee9c918ce505efe225d8c94d045fa115";
+const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "";
 
 const std::initializer_list<const char*> SEED_NODES = {
-    "206.189.232.35:13739",
     "159.65.132.179:13739",
     
 };
