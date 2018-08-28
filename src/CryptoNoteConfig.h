@@ -108,7 +108,7 @@ const uint64_t MIN_BLOCK_REWARD                              = (UINT64_C(150) * 
 const uint64_t REWARD_HALVING_INTERVAL                       = (UINT64_C(11000));
 
 const char     CRYPTONOTE_NAME[]                             = "SDScoin";
-const char     GENESIS_COINBASE_TX_HEX[]                     = "";
+const char     GENESIS_COINBASE_TX_HEX[]                     = "013c01ff0001c096b102029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd0880712101e0a3eda57e823c24797ad83d23b44a4c107d7ec0432a28a368ee2ae100c1be12";
 const uint32_t GENESIS_NONCE                                 = 420;
 
 const uint8_t  CURRENT_TRANSACTION_VERSION                   =  1;
