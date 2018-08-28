@@ -22,7 +22,7 @@ namespace parameters {
 const uint64_t CRYPTONOTE_MAX_BLOCK_NUMBER                   = 500000000;
 const size_t   CRYPTONOTE_MAX_BLOCK_BLOB_SIZE                = 500000000;
 const size_t   CRYPTONOTE_MAX_TX_SIZE                        = 1000000000;
-const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x2eb7f37; // addresses start with "Xmyro"
+const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0x8df96; // addresses start with "SDS"
 const size_t   CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW          = 60;
 const uint64_t CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE           = 10;
 
@@ -99,16 +99,16 @@ const char     P2P_NET_DATA_FILENAME[]                       = "p2pstate.bin";
 const char     CRYPTONOTE_BLOCKCHAIN_INDICES_FILENAME[]      = "blockchainindices.dat";
 const char     MINER_CONFIG_FILE_NAME[]                      = "miner_conf.json";
 
-const uint64_t GENESIS_BLOCK_REWARD                          = (UINT64_C(999999990000000));
+const uint64_t GENESIS_BLOCK_REWARD                          = (UINT64_C(5000000));
 } // parameters
 
-const uint64_t GENESIS_BLOCK_REWARD                          = (UINT64_C(999999990000000));
+const uint64_t GENESIS_BLOCK_REWARD                          = (UINT64_C(5000000));
 const uint64_t START_BLOCK_REWARD                            = (UINT64_C(1000) * parameters::COIN);
 const uint64_t MIN_BLOCK_REWARD                              = (UINT64_C(150) * parameters::COIN);
 const uint64_t REWARD_HALVING_INTERVAL                       = (UINT64_C(11000));
 
-const char     CRYPTONOTE_NAME[]                             = "Vmynero";
-const char     GENESIS_COINBASE_TX_HEX[]                     = "013c01ff000180d3b7a1eaafe301029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd0880712101baf8e27f3d1d7fefff71db6cf720f25940c70aac1fe8117eaf7235bc97187936";
+const char     CRYPTONOTE_NAME[]                             = "SDScoin";
+const char     GENESIS_COINBASE_TX_HEX[]                     = "";
 const uint32_t GENESIS_NONCE                                 = 420;
 
 const uint8_t  CURRENT_TRANSACTION_VERSION                   =  1;
