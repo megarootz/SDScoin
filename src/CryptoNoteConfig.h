@@ -108,7 +108,7 @@ const uint64_t MIN_BLOCK_REWARD                              = (UINT64_C(150) * 
 const uint64_t REWARD_HALVING_INTERVAL                       = (UINT64_C(11000));
 
 const char     CRYPTONOTE_NAME[]                             = "SDScoin";
-const char     GENESIS_COINBASE_TX_HEX[]                     = "013c01ff0001c096b102029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd088071210147c06c5436bf1a5d6771dfd7482bd6e213a80575e58b109a4a4c62e3adadce70";
+const char     GENESIS_COINBASE_TX_HEX[]                     = "";
 const uint32_t GENESIS_NONCE                                 = 420;
 
 const uint8_t  CURRENT_TRANSACTION_VERSION                   =  1;
@@ -146,6 +146,7 @@ const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "";
 
 const std::initializer_list<const char*> SEED_NODES = {
     "159.65.132.179:13739",
+    "206.189.232.35:13739",
     
 };
 
@@ -161,7 +162,7 @@ __attribute__((unused))
 // You may add here other checkpoints using the following format:
 // {<block height>, "<block hash>"},
 const std::initializer_list<CheckpointData> CHECKPOINTS = {
-
+{ 1000, "0000000000000000000000000000000000000000000000000000000000000000" },
 };
 
 const std::map<const uint32_t, const uint8_t> Version = {
